@@ -1,8 +1,50 @@
+/* Keep the dashboard centered and give it room below the content. */
 .app-shell { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding-bottom: 64px; }
+/* Style the brand header and account shortcut. */
 .topbar { height: 84px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #dfe6de; }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #d9f36a; color: #243214; font: 700 22px Georgia, serif; }
 .topbar strong { display: block; font: 700 17px Georgia, serif; letter-spacing: .3px; }.topbar span { display: block; color: #87928a; font-size: 11px; }.avatar { margin-left: auto; border: 0; background: #dde6df; color: #506459; border-radius: 50%; width: 36px; height: 36px; font-size: 12px; font-weight: 700; }
+/* Arrange the greeting and reporting-month control. */
 .welcome-row { display: flex; justify-content: space-between; align-items: end; padding: 50px 0 34px; }.eyebrow { color: #8a978d; text-transform: uppercase; font-size: 10px; letter-spacing: 1.4px; font-weight: 700; margin: 0 0 9px; }.welcome-row h1 { color: #25312b; font: 700 clamp(30px, 4vw, 43px)/1.1 Georgia, serif; margin: 0 0 12px; letter-spacing: -.8px; }.muted { color: #89958d; font-size: 13px; margin: 0; }.month-chip, .filter-button { border: 1px solid #dbe4da; background: #fff; padding: 11px 14px; border-radius: 7px; color: #536158; font-size: 12px; }.month-chip span, .filter-button span { margin-left: 17px; color: #91a097; }
+/* Lay out the balance, income, and expense summary cards. */
 .stats-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; }.stat-card { background: #fff; border: 1px solid #e3e9e2; border-radius: 10px; padding: 23px 25px; min-height: 145px; box-shadow: 0 8px 24px #394b3810; }.stat-card.balance { background: #33463c; color: #fff; border-color: #33463c; }.stat-label { color: #78867c; font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; display: flex; align-items: center; gap: 7px; }.balance .stat-label { color: #b9c5be; }.info { display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; width: 13px; height: 13px; font-size: 9px; }.stat-card strong { display: block; font: 700 29px Georgia, serif; margin: 13px 0 9px; letter-spacing: -.5px; }.trend { font-size: 11px; font-weight: 700; }.trend small { color: #96a199; font-weight: 400; margin-left: 4px; }.positive { color: #80a24d; }.balance .positive { color: #d8ee77; }.negative { color: #c66e68; }.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }.income-dot { background: #9bc464; }.expense-dot { background: #e69389; }.balance-bar { height: 4px; background: #52685a; border-radius: 3px; margin-top: 20px; }.balance-bar span { height: 100%; background: #d9f36a; border-radius: 3px; display: block; }
+/* Split the activity list and add-transaction form into two panels. */
 .content-grid { display: grid; grid-template-columns: 1.35fr .9fr; gap: 20px; margin-top: 28px; }.transactions-panel, .add-panel { background: #fff; border: 1px solid #e3e9e2; border-radius: 10px; padding: 26px 28px; }.section-heading { display: flex; align-items: start; justify-content: space-between; margin-bottom: 23px; }.section-heading h2 { font: 700 20px Georgia, serif; margin: 0 0 5px; color: #29372f; }.filter-button { padding: 8px 10px; font-size: 11px; }.filter-button span { margin-left: 9px; }.date-group + .date-group { margin-top: 24px; }.date-label { color: #87958b; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }.date-label span { font-weight: 400; letter-spacing: 0; margin-left: 5px; text-transform: none; }.transaction { display: flex; align-items: center; gap: 13px; padding: 12px 0; border-bottom: 1px solid #eff2ed; }.transaction-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; font-size: 17px; font-weight: 700; }.transaction-icon.income { background: #eef6dc; color: #6d9639; }.transaction-icon.expense { background: #faece8; color: #c8766b; }.transaction-info { flex: 1; min-width: 0; }.transaction-info strong { display: block; color: #344139; font-size: 13px; }.transaction-info span { display: block; color: #99a39b; font-size: 11px; margin-top: 3px; }.amount { color: #48544c; font: 700 13px Georgia, serif; }.income-amount { color: #729844; }.delete-button { border: 0; background: transparent; color: #b7c0b8; font-size: 19px; padding: 2px; cursor: pointer; opacity: 0; }.transaction:hover .delete-button, .delete-button:focus { opacity: 1; }.plus-icon { color: #7da13d; background: #edf6d9; border-radius: 50%; width: 25px; height: 25px; display: grid; place-items: center; font-size: 20px; }.type-toggle { background: #f1f4ef; padding: 3px; border-radius: 6px; display: flex; margin-bottom: 20px; }.type-toggle button { flex: 1; border: 0; border-radius: 5px; color: #849087; padding: 8px; background: transparent; font-size: 12px; cursor: pointer; }.type-toggle button.selected { background: #fff; box-shadow: 0 2px 6px #42523b12; color: #35423a; font-weight: 700; }.type-toggle button.expense-selected { color: #b5655b; }.type-toggle button.income-selected { color: #70923e; } form label { display: block; color: #758278; font-size: 11px; font-weight: 700; margin-bottom: 14px; } input, select { display: block; width: 100%; margin-top: 7px; background: #fafcf9; border: 1px solid #dfe7de; border-radius: 6px; color: #39483f; padding: 10px 11px; font-size: 12px; outline: none; } input:focus, select:focus { border-color: #a6c667; box-shadow: 0 0 0 3px #d9f36a40; }.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }.add-button { width: 100%; border: 0; border-radius: 6px; background: #354a3d; color: #fff; padding: 12px; font-weight: 700; font-size: 12px; text-transform: capitalize; cursor: pointer; margin-top: 5px; }.add-button:hover { background: #27392e; }
+/* Stack the panels and keep controls usable on small screens. */
 @media (max-width: 760px) { .app-shell { width: min(100% - 28px, 600px); }.welcome-row { align-items: start; flex-direction: column; gap: 20px; padding: 36px 0 25px; }.month-chip { align-self: stretch; }.stats-grid, .content-grid { grid-template-columns: 1fr; }.stat-card { min-height: 125px; }.transactions-panel, .add-panel { padding: 22px 18px; }.delete-button { opacity: 1; }.amount { font-size: 12px; } }
+
+/* Red and black theme accents. */
+.topbar { border-color: #d8d0ce; }
+.brand-mark { background: #bd202b; color: #fff; }
+.topbar span, .muted, .eyebrow, .date-label { color: #857d7a; }
+.avatar { background: #211f1f; color: #fff; }
+.welcome-row h1, .section-heading h2 { color: #171616; }
+.month-chip, .filter-button { border-color: #d8d0ce; color: #4d4644; }
+.stat-card, .transactions-panel, .add-panel, .month-chip, .filter-button { background: #fffdfc; border-color: #ded6d3; }
+.stat-card.balance { background: #191818; border-color: #191818; }
+.stat-label { color: #766d6a; }
+.balance .stat-label { color: #bbb1ae; }
+.balance .positive, .positive { color: #bd202b; }
+.balance-bar { background: #403737; }
+.balance-bar span { background: #e3424d; }
+.negative { color: #bd202b; }
+.income-dot { background: #bd202b; }
+.expense-dot { background: #211f1f; }
+.transaction { border-color: #eee8e5; }
+.transaction-icon.income { background: #f8e4e5; color: #a51c26; }
+.transaction-icon.expense { background: #ebe7e5; color: #211f1f; }
+.transaction-info strong, .amount { color: #2c2827; }
+.income-amount { color: #b51e28; }
+.delete-button { color: #9a8d89; }
+.plus-icon { color: #b51e28; background: #f8e4e5; }
+.type-toggle { background: #eee9e7; }
+.type-toggle button.expense-selected, .type-toggle button.income-selected { color: #b51e28; }
+input, select { background: #fffdfc; border-color: #d8cfcc; color: #2c2827; }
+input:focus, select:focus { border-color: #bd202b; box-shadow: 0 0 0 3px #bd202b26; }
+.add-button { background: #1d1b1b; }
+.add-button:hover { background: #bd202b; }
+/* Style the workbook export action below the transaction form. */
+.export-button { width: 100%; margin-top: 10px; border: 1px solid #bd202b; border-radius: 6px; background: #fffdfc; color: #a51c26; padding: 11px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.export-button:hover { background: #f8e4e5; }
+/* Explain that entries are saved directly to the workbook database. */
+.database-note { color: #9a8d89; font-size: 10px; line-height: 1.4; margin: 12px 0 0; text-align: center; }
