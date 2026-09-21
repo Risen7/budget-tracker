@@ -1,9 +1,11 @@
 import { createServer } from 'node:http'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import XLSX from 'xlsx'
 
-const port = 3001
+const port = Number(process.env.PORT ?? 3001)
+const host = process.env.HOST ?? '0.0.0.0'
+const distPath = join(process.cwd(), 'dist')
 const databasePath = join(process.cwd(), 'budget-database.xlsx')
 const starterTransactions = [
   { id: 1, title: 'Monthly salary', category: 'Salary', amount: 3200, type: 'income', date: '2026-09-20' },
@@ -60,17 +62,39 @@ function sendJson(response, statusCode, data) {
   response.end(JSON.stringify(data))
 }
 
+function serveFrontend(request, response) {
+  if (!existsSync(join(distPath, 'index.html'))) {
+    sendJson(response, 404, { error: 'Frontend build not found. Run npm run build first.' })
+    return
+  }
+
+  const requestedPath = new URL(request.url, `http://${host}`).pathname
+  const filePath = join(distPath, requestedPath === '/' ? 'index.html' : requestedPath)
+  const assetPath = existsSync(filePath) ? filePath : join(distPath, 'index.html')
+  const contentType = assetPath.endsWith('.js')
+    ? 'text/javascript'
+    : assetPath.endsWith('.css')
+      ? 'text/css'
+      : assetPath.endsWith('.svg')
+        ? 'image/svg+xml'
+        : 'text/html'
+
+  response.writeHead(200, { 'Content-Type': contentType })
+  response.end(readFileSync(assetPath))
+}
+
 const server = createServer((request, response) => {
   if (request.method === 'OPTIONS') {
     response.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type' })
     response.end()
     return
   }
-  if (request.method === 'GET' && request.url === '/api/transactions') {
+  const requestPath = new URL(request.url, `http://${host}`).pathname
+  if (request.method === 'GET' && requestPath === '/api/transactions') {
     sendJson(response, 200, readTransactions())
     return
   }
-  if (request.method === 'POST' && request.url === '/api/transactions') {
+  if (request.method === 'POST' && requestPath === '/api/transactions') {
     let body = ''
     request.on('data', (chunk) => { body += chunk })
     request.on('end', () => {
@@ -85,10 +109,14 @@ const server = createServer((request, response) => {
     })
     return
   }
+  if (request.method === 'GET') {
+    serveFrontend(request, response)
+    return
+  }
   sendJson(response, 404, { error: 'Not found' })
 })
 
-server.listen(port, () => {
+server.listen(port, host, () => {
   writeDatabase(readTransactions())
-  console.log(`Excel database API running at http://localhost:${port}`)
+  console.log(`Budget tracker running on ${host}:${port}`)
 })

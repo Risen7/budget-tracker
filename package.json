@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node server.mjs\" \"vite\"",
+    "dev": "concurrently \"node server.mjs\" \"vite --host 0.0.0.0\"",
     "build": "tsc -b && vite build",
+    "start": "node server.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
