@@ -1,3 +1,13 @@
+.weekly-panel { background: #f9faf7; border: 1px solid #e7ece4; border-radius: 12px; padding: 16px 16px 12px; margin-bottom: 22px; }
+.weekly-total { color: #2c2827; font: 700 15px Georgia, serif; }
+.weekly-chart { min-height: 190px; padding-top: 8px; }
+.weekly-chart svg { width: 100%; height: 170px; display: block; overflow: visible; }
+.chart-bar { fill: #bd202b; opacity: 0.9; transition: opacity .18s ease, transform .18s ease; }
+.chart-bar-group:hover .chart-bar { opacity: 1; }
+.chart-label { fill: #7d8a82; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+.chart-value { fill: #4d4644; font-size: 8px; font-weight: 700; letter-spacing: 0; opacity: 0; transition: opacity .15s ease; }
+.chart-bar-group:hover .chart-value { opacity: 1; }
+
 /* Keep the dashboard centered and give it room below the content. */
 .app-shell { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding-bottom: 64px; }
 /* Style the brand header and account shortcut. */
@@ -45,6 +55,55 @@ input:focus, select:focus { border-color: #bd202b; box-shadow: 0 0 0 3px #bd202b
 .add-button:hover { background: #bd202b; }
 /* Style the workbook export action below the transaction form. */
 .export-button { width: 100%; margin-top: 10px; border: 1px solid #bd202b; border-radius: 6px; background: #fffdfc; color: #a51c26; padding: 11px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.export-button:disabled { cursor: not-allowed; opacity: .45; }
 .export-button:hover { background: #f8e4e5; }
 /* Explain that entries are saved directly to the workbook database. */
 .database-note { color: #9a8d89; font-size: 10px; line-height: 1.4; margin: 12px 0 0; text-align: center; }
+.history-panel { margin-top: 20px; background: #fffdfc; border: 1px solid #ded6d3; border-radius: 10px; padding: 18px 18px 12px; }
+.history-count { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #ebe7e5; color: #4d4644; font-size: 12px; font-weight: 700; }
+.collapsible-header { align-items: center; margin-bottom: 12px; }
+.collapse-toggle { border: 1px solid #d8cfcc; background: #fffdfc; color: #4d4644; border-radius: 6px; padding: 6px 9px; font-size: 10px; font-weight: 700; cursor: pointer; }
+.history-list .transaction:last-child { border-bottom: 0; }
+.history-title-field { display: block; margin-top: 16px; }
+.history-group + .history-group { margin-top: 12px; }
+.history-group h3 { margin: 0 0 6px; color: #2c2827; font: 700 13px Georgia, serif; }
+
+.weekly-panel { padding: 12px 12px 10px; margin-bottom: 14px; }
+.weekly-panel .section-heading { margin-bottom: 12px; }
+.weekly-panel .section-heading h2 { font-size: 16px; }
+.weekly-panel .stats-grid { gap: 10px; }
+.weekly-panel .stat-card { padding: 14px 12px; min-height: 92px; }
+.weekly-panel .stat-card strong { font-size: 18px; margin: 8px 0 4px; }
+.weekly-panel .stat-label { font-size: 9px; }
+.weekly-panel .history-list { padding-top: 4px; }
+.weekly-panel .transaction { padding: 8px 0; }
+.weekly-panel .transaction-info strong { font-size: 12px; }
+.weekly-panel .transaction-info span { font-size: 10px; }
+.weekly-panel .amount { font-size: 11px; }
+
+/* Keep the expanded history and archive controls inside the dashboard grid. */
+html, body, #root { min-height: 100%; }
+body { overflow-x: hidden; }
+.app-shell { max-width: 1180px; }
+.stats-grid, .content-grid { min-width: 0; }
+.transactions-panel, .add-panel, .history-panel { min-width: 0; overflow: hidden; }
+.transaction-list, .history-list { min-width: 0; overflow-x: auto; }
+.transaction { min-width: 0; }
+.transaction-info strong, .transaction-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amount { flex: 0 0 auto; white-space: nowrap; }
+.history-title-field { color: #4d4644; font-size: 12px; font-weight: 700; }
+.history-title-field input { display: block; width: 100%; margin-top: 7px; }
+.history-group h3 { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+	.app-shell { width: min(100% - 28px, 600px); }
+	.welcome-row { align-items: stretch; }
+	.month-chip { width: 100%; }
+	.content-grid { gap: 16px; }
+	.section-heading { gap: 14px; }
+	.section-heading > div { min-width: 0; }
+	.section-heading h2 { font-size: 18px; }
+	.filter-button { flex: 0 0 auto; }
+	.history-panel { padding: 22px 18px; }
+	.history-title-field input, .export-button { min-height: 42px; }
+}

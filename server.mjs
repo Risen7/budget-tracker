@@ -23,6 +23,7 @@ function readTransactions() {
   return XLSX.utils.sheet_to_json(sheet).map((row) => ({
     id: Number(row.ID),
     title: String(row.Description ?? ''),
+    historyTitle: String(row.HistoryTitle ?? ''),
     category: String(row.Category ?? 'Other'),
     amount: Number(row.Amount ?? 0),
     type: row.Type === 'income' ? 'income' : 'expense',
@@ -30,7 +31,61 @@ function readTransactions() {
   }))
 }
 
-function writeDatabase(transactions) {
+function readHistory() {
+  if (!existsSync(databasePath)) return []
+  const workbook = XLSX.readFile(databasePath)
+  const sheet = workbook.Sheets['Expense History']
+  if (!sheet) return []
+  return XLSX.utils.sheet_to_json(sheet).map((row) => ({
+    id: Number(row.ID),
+    title: String(row.Description ?? ''),
+    historyTitle: String(row.HistoryTitle ?? ''),
+    category: String(row.Category ?? 'Other'),
+    amount: Number(row.Amount ?? 0),
+    type: row.Type === 'income' ? 'income' : 'expense',
+    date: String(row.Date ?? ''),
+  }))
+}
+
+function buildHistoryTotals(transactions, historyTitle) {
+  const totals = transactions.reduce((summary, transaction) => {
+    summary[transaction.type] += transaction.amount
+    return summary
+  }, { income: 0, expense: 0 })
+  const archiveDate = new Date().toISOString().slice(0, 10)
+
+  return [
+    {
+      id: Date.now() + 1,
+      title: 'Total income',
+      historyTitle,
+      category: 'Summary',
+      amount: totals.income,
+      type: 'income',
+      date: archiveDate,
+    },
+    {
+      id: Date.now() + 2,
+      title: 'Total expenses',
+      historyTitle,
+      category: 'Summary',
+      amount: totals.expense,
+      type: 'expense',
+      date: archiveDate,
+    },
+    {
+      id: Date.now() + 3,
+      title: 'Available balance',
+      historyTitle,
+      category: 'Summary',
+      amount: totals.income - totals.expense,
+      type: 'income',
+      date: archiveDate,
+    },
+  ]
+}
+
+function writeDatabase(transactions, history = readHistory()) {
   const transactionRows = transactions.map((transaction) => ({
     ID: transaction.id,
     Date: transaction.date,
@@ -50,10 +105,21 @@ function writeDatabase(transactions) {
     { Metric: 'Available balance', Amount: totals.income - totals.expense },
   ])
   const transactionSheet = XLSX.utils.json_to_sheet(transactionRows)
+  const historySheet = XLSX.utils.json_to_sheet(history.map((transaction) => ({
+    ID: transaction.id,
+    Date: transaction.date,
+    HistoryTitle: transaction.historyTitle ?? '',
+    Description: transaction.title,
+    Category: transaction.category,
+    Type: transaction.type,
+    Amount: transaction.amount,
+  })))
   summarySheet['!cols'] = [{ wch: 22 }, { wch: 16 }]
   transactionSheet['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 26 }, { wch: 18 }, { wch: 12 }, { wch: 14 }]
+  historySheet['!cols'] = transactionSheet['!cols']
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
   XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions')
+  XLSX.utils.book_append_sheet(workbook, historySheet, 'Expense History')
   XLSX.writeFile(workbook, databasePath)
 }
 
@@ -94,6 +160,10 @@ const server = createServer((request, response) => {
     sendJson(response, 200, readTransactions())
     return
   }
+  if (request.method === 'GET' && requestPath === '/api/transactions/history') {
+    sendJson(response, 200, readHistory())
+    return
+  }
   if (request.method === 'POST' && requestPath === '/api/transactions') {
     let body = ''
     request.on('data', (chunk) => { body += chunk })
@@ -103,6 +173,26 @@ const server = createServer((request, response) => {
         if (!Array.isArray(transactions)) throw new Error('Transactions must be an array')
         writeDatabase(transactions)
         sendJson(response, 200, { saved: true })
+      } catch (error) {
+        sendJson(response, 400, { error: error.message })
+      }
+    })
+    return
+  }
+  if (request.method === 'POST' && requestPath === '/api/transactions/archive') {
+    let body = ''
+    request.on('data', (chunk) => { body += chunk })
+    request.on('end', () => {
+      try {
+        const { title } = JSON.parse(body || '{}')
+        const historyTitle = String(title ?? '').trim()
+        const transactions = readTransactions()
+        if (!historyTitle) throw new Error('A history title is required.')
+        if (transactions.length === 0) throw new Error('There are no transactions to save.')
+        const titledTransactions = transactions.map((transaction) => ({ ...transaction, historyTitle }))
+        const totals = buildHistoryTotals(transactions, historyTitle)
+        writeDatabase([], [...readHistory(), ...titledTransactions, ...totals])
+        sendJson(response, 200, { saved: transactions.length })
       } catch (error) {
         sendJson(response, 400, { error: error.message })
       }
