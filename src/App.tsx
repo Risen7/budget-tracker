@@ -2,30 +2,17 @@
 import { useEffect, useMemo, useState } from 'react'
 // Import the form event type without adding it to the runtime bundle.
 import type { FormEvent } from 'react'
+import {
+  chooseDatabaseDirectory as openDatabaseDirectoryPicker,
+  getSavedDirectory,
+  loadWorkbook,
+  saveDirectory,
+  supportsFolderSelection,
+  writeWorkbook,
+} from './excelDatabase'
+import type { BrowserDirectoryHandle, Transaction, TransactionType } from './excelDatabase'
 // Load the dashboard stylesheet.
 import './App.css'
-
-// Restrict transactions to the two supported financial directions.
-type TransactionType = 'income' | 'expense'
-// Describe every value stored for a transaction.
-type Transaction = {
-  id: number
-  title: string
-  historyTitle?: string
-  category: string
-  amount: number
-  type: TransactionType
-  date: string
-}
-
-// Provide useful sample data when the tracker has no saved entries yet.
-const initialTransactions: Transaction[] = [
-  { id: 1, title: 'Monthly salary', category: 'Salary', amount: 3200, type: 'income', date: '2026-09-20' },
-  { id: 2, title: 'Apartment rent', category: 'Housing', amount: 1150, type: 'expense', date: '2026-09-20' },
-  { id: 3, title: 'Grocery run', category: 'Food', amount: 86.45, type: 'expense', date: '2026-09-19' },
-  { id: 4, title: 'Freelance project', category: 'Side income', amount: 450, type: 'income', date: '2026-09-18' },
-  { id: 5, title: 'Train pass', category: 'Transport', amount: 42, type: 'expense', date: '2026-09-18' },
-]
 
 // Format all displayed amounts consistently as Philippine pesos.
 const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
@@ -44,8 +31,8 @@ function formatDate(date: string) {
 
 // Render the complete budget dashboard.
 function App() {
-  // Hold the transactions loaded from the Excel database API.
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
+  // Hold the transactions loaded from the selected Excel workbook.
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   // Hold transactions that have been moved into expense history.
   const [history, setHistory] = useState<Transaction[]>([])
   // Track whether the new entry is income or an expense.
@@ -70,24 +57,26 @@ function App() {
   const [databaseMessage, setDatabaseMessage] = useState('')
   // Prevent opening multiple folder pickers at once.
   const [isChoosingDatabaseDirectory, setIsChoosingDatabaseDirectory] = useState(false)
+  // Retain browser access to the selected folder for workbook reads and writes.
+  const [directoryHandle, setDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
 
-  // Load the current transaction table from the Excel database when the app starts.
+  // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
-    // Request the workbook data through the local API.
-    fetch('/api/transactions')
-      .then((response) => response.json())
-      .then((savedTransactions: Transaction[]) => setTransactions(savedTransactions))
-      .catch(() => setTransactions(initialTransactions))
-    fetch('/api/transactions/history')
-      .then((response) => response.json())
-      .then((savedHistory: Transaction[]) => setHistory(savedHistory))
-    fetch('/api/database-directory')
-      .then((response) => {
-        if (!response.ok) throw new Error('Unable to load the Excel database folder.')
-        return response.json()
+    let isCurrent = true
+    getSavedDirectory()
+      .then(async (handle) => {
+        if (!handle || !isCurrent) return
+        setDatabaseDirectory(handle.name)
+        const data = await loadWorkbook(handle)
+        if (!isCurrent) return
+        setDirectoryHandle(handle)
+        setTransactions(data.transactions)
+        setHistory(data.history)
       })
-      .then((database: { directory: string }) => setDatabaseDirectory(database.directory))
-      .catch(() => setDatabaseMessage('Unable to load the Excel database folder.'))
+      .catch((error: unknown) => {
+        if (isCurrent) setDatabaseMessage(error instanceof Error ? error.message : 'Unable to restore the Excel database folder.')
+      })
+    return () => { isCurrent = false }
   }, [])
 
   // Calculate total income and expenses whenever the transaction list changes.
@@ -164,52 +153,67 @@ function App() {
 
   // Update the screen and persist the new list in the Excel database.
   async function save(nextTransactions: Transaction[]) {
-    // Refresh the visible dashboard immediately.
-    setTransactions(nextTransactions)
-    // Send the complete transaction table to the local Excel database API.
-    await fetch('/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nextTransactions) })
+    if (!directoryHandle) {
+      setDatabaseMessage('Choose an Excel database folder before making changes.')
+      return false
+    }
+    try {
+      await writeWorkbook(directoryHandle, { transactions: nextTransactions, history })
+      setTransactions(nextTransactions)
+      setDatabaseMessage('')
+      return true
+    } catch (error) {
+      setDatabaseMessage(error instanceof Error ? error.message : 'Unable to save the Excel workbook.')
+      return false
+    }
   }
 
   // Move the active list into the workbook history and clear it after success.
   async function archiveTransactions() {
     setArchiveMessage('')
-    const response = await fetch('/api/transactions/archive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: historyTitle }) })
-    const result = await response.json()
-    if (!response.ok) {
-      setArchiveMessage(result.error ?? 'Unable to save the expense history.')
+    if (!directoryHandle || !historyTitle.trim() || !transactions.length) {
+      setArchiveMessage('Choose a folder, enter a history title, and add transactions before saving.')
       return
     }
-    setTransactions([])
-    setHistory((currentHistory) => [...currentHistory, ...transactions])
-    setHistoryTitle('')
-    setArchiveMessage(`${result.saved} transaction${result.saved === 1 ? '' : 's'} saved to expense history.`)
+    const title = historyTitle.trim()
+    const totals = transactions.reduce((summary, transaction) => {
+      summary[transaction.type] += transaction.amount
+      return summary
+    }, { income: 0, expense: 0 })
+    const archiveDate = new Date().toISOString().slice(0, 10)
+    const archivedTransactions = transactions.map((transaction) => ({ ...transaction, historyTitle: title }))
+    const summaryTransactions: Transaction[] = [
+      { id: Date.now() + 1, title: 'Total income', historyTitle: title, category: 'Summary', amount: totals.income, type: 'income', date: archiveDate },
+      { id: Date.now() + 2, title: 'Total expenses', historyTitle: title, category: 'Summary', amount: totals.expense, type: 'expense', date: archiveDate },
+      { id: Date.now() + 3, title: 'Available balance', historyTitle: title, category: 'Summary', amount: totals.income - totals.expense, type: 'income', date: archiveDate },
+    ]
+    const nextHistory = [...history, ...archivedTransactions, ...summaryTransactions]
+    try {
+      await writeWorkbook(directoryHandle, { transactions: [], history: nextHistory })
+      setTransactions([])
+      setHistory(nextHistory)
+      setHistoryTitle('')
+      setDatabaseMessage('')
+      setArchiveMessage(`${transactions.length} transaction${transactions.length === 1 ? '' : 's'} saved to expense history.`)
+    } catch (error) {
+      setArchiveMessage(error instanceof Error ? error.message : 'Unable to save the expense history.')
+    }
   }
 
-  // Open the operating system folder picker and switch the workbook location.
+  // Open the browser folder picker and load or create the selected workbook.
   async function chooseDatabaseDirectory() {
     setDatabaseMessage('')
     setIsChoosingDatabaseDirectory(true)
     try {
-      const response = await fetch('/api/database-directory/pick', { method: 'POST' })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error ?? 'Unable to select the Excel database folder.')
-      if (result.canceled) return
-
-      setDatabaseDirectory(result.directory)
-      const [transactionsResponse, historyResponse] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/transactions/history'),
-      ])
-      if (!transactionsResponse.ok || !historyResponse.ok) {
-        throw new Error('The selected folder could not be loaded.')
-      }
-      const [savedTransactions, savedHistory] = await Promise.all([
-        transactionsResponse.json() as Promise<Transaction[]>,
-        historyResponse.json() as Promise<Transaction[]>,
-      ])
-      setTransactions(savedTransactions)
-      setHistory(savedHistory)
+      const handle = await openDatabaseDirectoryPicker()
+      const data = await loadWorkbook(handle)
+      await saveDirectory(handle)
+      setDirectoryHandle(handle)
+      setDatabaseDirectory(handle.name)
+      setTransactions(data.transactions)
+      setHistory(data.history)
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
       setDatabaseMessage(error instanceof Error ? error.message : 'Unable to select the Excel database folder.')
     } finally {
       setIsChoosingDatabaseDirectory(false)
@@ -217,7 +221,7 @@ function App() {
   }
 
   // Validate and add a transaction submitted from the form.
-  function addTransaction(event: FormEvent<HTMLFormElement>) {
+  async function addTransaction(event: FormEvent<HTMLFormElement>) {
     // Prevent the browser from reloading the page on submit.
     event.preventDefault()
     // Convert the input amount from text into a number.
@@ -225,7 +229,8 @@ function App() {
     // Ignore incomplete or invalid entries.
     if (!title.trim() || !numericAmount || numericAmount < 0) return
     // Add the newest transaction to the selected date group.
-    save([{ id: Date.now(), title: title.trim(), category, amount: numericAmount, type, date }, ...transactions])
+    const saved = await save([{ id: Date.now(), title: title.trim(), category, amount: numericAmount, type, date }, ...transactions])
+    if (!saved) return
     // Clear the text fields after a successful submission.
     setTitle('')
     setAmount('')
@@ -243,7 +248,7 @@ function App() {
       {/* Place the daily activity list beside the entry form. */}
       <div className="content-grid"><section className="transactions-panel"><div className="weekly-panel"><div className="section-heading"><div><h2>15-day expenditure</h2><p className="muted">Your spend across the last 15 days</p></div><strong className="weekly-total">{currency.format(Math.max(...weeklyExpenditure.map((day) => day.total), 0))}</strong></div><div className="weekly-chart" aria-label="15-day expenditure chart"><svg viewBox="0 0 370 160" preserveAspectRatio="none" role="img" aria-label="15-day expenditure bar chart"><g>{chartBars.map((bar) => <g key={bar.key} className="chart-bar-group"><rect className="chart-bar" x={bar.x} y={bar.y} width={bar.width} height={bar.height} rx="4" /><text className="chart-value" x={bar.x + bar.width / 2} y={bar.y - 8} textAnchor="middle">{currency.format(bar.total)}</text><text className="chart-label" x={bar.x + bar.width / 2} y="150" textAnchor="middle">{bar.label}</text></g>)}</g></svg></div></div><div className="section-heading"><div><h2>Recent activity</h2><p className="muted">Your latest income and expenses</p></div><button className="filter-button" type="button">All activity <span>⌄</span></button></div><div className="transaction-list">{Object.entries(groupedTransactions).map(([date, entries]) => <div className="date-group" key={date}><div className="date-label">{formatDate(date)} <span>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })}</span></div>{entries.map((transaction) => <div className="transaction" key={transaction.id}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div><button className="delete-button" type="button" aria-label={`Delete ${transaction.title}`} onClick={() => save(transactions.filter((item) => item.id !== transaction.id))}>×</button></div>)}</div>)}</div><label className="history-title-field">History title<input value={historyTitle} onChange={(event) => setHistoryTitle(event.target.value)} placeholder="e.g. September expenses" required /></label><button className="export-button" type="button" onClick={archiveTransactions} disabled={!transactions.length || !historyTitle.trim()}>Save to expense history</button>{archiveMessage && <p className="database-note">{archiveMessage}</p>}</section>
         {/* Provide controls for adding income and expense entries. */}
-        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'Loading folder…'}</code><button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isChoosingDatabaseDirectory}>{isChoosingDatabaseDirectory ? 'Opening folder picker…' : 'Choose folder'}</button>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside></div>
+        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isChoosingDatabaseDirectory}>{isChoosingDatabaseDirectory ? 'Opening folder picker…' : 'Choose folder'}</button> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The workbook is saved on this device in this browser.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside></div>
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
     </main>
   )

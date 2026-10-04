@@ -2,7 +2,7 @@
 
 ## Excel database folder
 
-The dashboard stores its workbook as `budget-database.xlsx` in the project folder by default. Use **Choose folder** in the transaction panel to select a different folder with the Windows folder picker. If that folder already contains `budget-database.xlsx`, the dashboard switches to it; otherwise, it copies the current workbook there. The selected folder is saved locally and reused the next time the server starts.
+Use **Choose folder** in the dashboard to select a folder for `budget-database.xlsx`. The workbook is read and updated in your browser, including when the dashboard is deployed to Vercel. Your browser remembers the selection and may ask you to reconnect it later. Folder access requires Chrome or Edge on a secure connection; the workbook remains on that device and is not uploaded or shared with other users.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

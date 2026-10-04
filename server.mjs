@@ -1,28 +1,12 @@
 import { createServer } from 'node:http'
-import { execFile } from 'node:child_process'
-import { copyFileSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { promisify } from 'node:util'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import XLSX from 'xlsx'
 
-const execFileAsync = promisify(execFile)
 const port = Number(process.env.PORT ?? 3001)
 const host = process.env.HOST ?? '0.0.0.0'
 const distPath = join(process.cwd(), 'dist')
-const databaseSettingsPath = join(process.cwd(), '.budget-database-location.json')
-let databaseDirectory = process.cwd()
-if (existsSync(databaseSettingsPath)) {
-  const settings = JSON.parse(readFileSync(databaseSettingsPath, 'utf8'))
-  if (typeof settings.directory !== 'string') throw new Error('The saved Excel database directory is invalid.')
-  databaseDirectory = resolve(settings.directory)
-  if (!existsSync(databaseDirectory) || !statSync(databaseDirectory).isDirectory()) {
-    throw new Error(`The saved Excel database directory does not exist: ${databaseDirectory}`)
-  }
-}
-
-function getDatabasePath() {
-  return join(databaseDirectory, 'budget-database.xlsx')
-}
+const databasePath = join(process.cwd(), 'budget-database.xlsx')
 
 const starterTransactions = [
   { id: 1, title: 'Monthly salary', category: 'Salary', amount: 3200, type: 'income', date: '2026-09-20' },
@@ -32,7 +16,7 @@ const starterTransactions = [
   { id: 5, title: 'Train pass', category: 'Transport', amount: 42, type: 'expense', date: '2026-09-18' },
 ]
 
-function readTransactions(databasePath = getDatabasePath()) {
+function readTransactions() {
   if (!existsSync(databasePath)) return starterTransactions
   const workbook = XLSX.readFile(databasePath)
   const sheet = workbook.Sheets.Transactions
@@ -48,7 +32,7 @@ function readTransactions(databasePath = getDatabasePath()) {
   }))
 }
 
-function readHistory(databasePath = getDatabasePath()) {
+function readHistory() {
   if (!existsSync(databasePath)) return []
   const workbook = XLSX.readFile(databasePath)
   const sheet = workbook.Sheets['Expense History']
@@ -137,49 +121,12 @@ function writeDatabase(transactions, history = readHistory()) {
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
   XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions')
   XLSX.utils.book_append_sheet(workbook, historySheet, 'Expense History')
-  XLSX.writeFile(workbook, getDatabasePath())
+  XLSX.writeFile(workbook, databasePath)
 }
 
 function sendJson(response, statusCode, data) {
   response.writeHead(statusCode, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
   response.end(JSON.stringify(data))
-}
-
-function isLocalRequest(request) {
-  const address = request.socket.remoteAddress?.replace(/^::ffff:/, '')
-  return address === '127.0.0.1' || address === '::1'
-}
-
-async function showDatabaseDirectoryPicker() {
-  if (process.platform !== 'win32') {
-    throw new Error('The folder picker is currently available on Windows only.')
-  }
-
-  const script = "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select the folder for budget-database.xlsx'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($dialog.SelectedPath) }"
-  const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', script], { windowsHide: false })
-  return stdout.trim()
-}
-
-function setDatabaseDirectory(directory) {
-  const selectedDirectory = resolve(directory)
-  if (!existsSync(selectedDirectory) || !statSync(selectedDirectory).isDirectory()) {
-    throw new Error('The selected folder is no longer available.')
-  }
-
-  const currentPath = getDatabasePath()
-  const nextPath = join(selectedDirectory, 'budget-database.xlsx')
-  if (nextPath !== currentPath) {
-    if (existsSync(nextPath)) {
-      XLSX.readFile(nextPath)
-    } else {
-      copyFileSync(currentPath, nextPath)
-    }
-
-    writeFileSync(databaseSettingsPath, JSON.stringify({ directory: selectedDirectory }, null, 2))
-    databaseDirectory = selectedDirectory
-  }
-
-  return { directory: databaseDirectory, fileName: 'budget-database.xlsx' }
 }
 
 function serveFrontend(request, response) {
@@ -210,30 +157,6 @@ const server = createServer((request, response) => {
     return
   }
   const requestPath = new URL(request.url, `http://${host}`).pathname
-  if (request.method === 'GET' && requestPath === '/api/database-directory') {
-    if (!isLocalRequest(request)) {
-      sendJson(response, 403, { error: 'The database folder can only be viewed from this computer.' })
-      return
-    }
-    sendJson(response, 200, { directory: databaseDirectory, fileName: 'budget-database.xlsx' })
-    return
-  }
-  if (request.method === 'POST' && requestPath === '/api/database-directory/pick') {
-    if (!isLocalRequest(request)) {
-      sendJson(response, 403, { error: 'The folder picker can only be used from this computer.' })
-      return
-    }
-    showDatabaseDirectoryPicker()
-      .then((directory) => {
-        if (!directory) {
-          sendJson(response, 200, { canceled: true })
-          return
-        }
-        sendJson(response, 200, setDatabaseDirectory(directory))
-      })
-      .catch((error) => sendJson(response, 500, { error: error.message }))
-    return
-  }
   if (request.method === 'GET' && requestPath === '/api/transactions') {
     sendJson(response, 200, readTransactions())
     return
