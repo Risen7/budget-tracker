@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+## Excel database folder
+
+The dashboard stores its workbook as `budget-database.xlsx` in the project folder by default. Use **Choose folder** in the transaction panel to select a different folder with the Windows folder picker. If that folder already contains `budget-database.xlsx`, the dashboard switches to it; otherwise, it copies the current workbook there. The selected folder is saved locally and reused the next time the server starts.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
