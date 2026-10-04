@@ -62,7 +62,8 @@ input:focus, select:focus { border-color: #bd202b; box-shadow: 0 0 0 3px #bd202b
 .history-panel { margin-top: 20px; background: #fffdfc; border: 1px solid #ded6d3; border-radius: 10px; padding: 18px 18px 12px; }
 .history-count { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #ebe7e5; color: #4d4644; font-size: 12px; font-weight: 700; }
 .collapsible-header { align-items: center; margin-bottom: 12px; }
-.collapse-toggle { border: 1px solid #d8cfcc; background: #fffdfc; color: #4d4644; border-radius: 6px; padding: 6px 9px; font-size: 10px; font-weight: 700; cursor: pointer; }
+.collapse-toggle { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #d8cfcc; background: #fffdfc; color: #4d4644; border-radius: 6px; padding: 0; font-size: 0; line-height: 1; font-weight: 700; cursor: pointer; }
+.collapse-toggle::after { content: '⌄'; font-size: 16px; }
 .history-list .transaction:last-child { border-bottom: 0; }
 .history-title-field { display: block; margin-top: 16px; }
 .history-group + .history-group { margin-top: 12px; }
