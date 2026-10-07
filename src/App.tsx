@@ -56,9 +56,11 @@ function App() {
   // Show errors from selecting or loading a database folder.
   const [databaseMessage, setDatabaseMessage] = useState('')
   // Prevent opening multiple folder pickers at once.
-  const [isChoosingDatabaseDirectory, setIsChoosingDatabaseDirectory] = useState(false)
+  const [isConnectingDatabase, setIsConnectingDatabase] = useState(false)
   // Retain browser access to the selected folder for workbook reads and writes.
   const [directoryHandle, setDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
+  // Keep the saved handle available when browser permission must be renewed.
+  const [savedDirectoryHandle, setSavedDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
 
   // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
@@ -66,6 +68,7 @@ function App() {
     getSavedDirectory()
       .then(async (handle) => {
         if (!handle || !isCurrent) return
+        setSavedDirectoryHandle(handle)
         setDatabaseDirectory(handle.name)
         const data = await loadWorkbook(handle)
         if (!isCurrent) return
@@ -203,11 +206,12 @@ function App() {
   // Open the browser folder picker and load or create the selected workbook.
   async function chooseDatabaseDirectory() {
     setDatabaseMessage('')
-    setIsChoosingDatabaseDirectory(true)
+    setIsConnectingDatabase(true)
     try {
       const handle = await openDatabaseDirectoryPicker()
       const data = await loadWorkbook(handle)
       await saveDirectory(handle)
+      setSavedDirectoryHandle(handle)
       setDirectoryHandle(handle)
       setDatabaseDirectory(handle.name)
       setTransactions(data.transactions)
@@ -216,7 +220,28 @@ function App() {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setDatabaseMessage(error instanceof Error ? error.message : 'Unable to select the Excel database folder.')
     } finally {
-      setIsChoosingDatabaseDirectory(false)
+      setIsConnectingDatabase(false)
+    }
+  }
+
+  // Renew permission for the previously saved folder without opening the picker.
+  async function reconnectSavedDirectory() {
+    if (!savedDirectoryHandle) return
+    setDatabaseMessage('')
+    setIsConnectingDatabase(true)
+    try {
+      const permission = await savedDirectoryHandle.requestPermission({ mode: 'readwrite' })
+      if (permission !== 'granted') {
+        throw new Error('Folder access was not granted. Choose the folder to reconnect.')
+      }
+      const data = await loadWorkbook(savedDirectoryHandle)
+      setDirectoryHandle(savedDirectoryHandle)
+      setTransactions(data.transactions)
+      setHistory(data.history)
+    } catch (error) {
+      setDatabaseMessage(error instanceof Error ? error.message : 'Unable to reconnect the saved Excel database folder.')
+    } finally {
+      setIsConnectingDatabase(false)
     }
   }
 
@@ -248,7 +273,7 @@ function App() {
       {/* Place the daily activity list beside the entry form. */}
       <div className="content-grid"><section className="transactions-panel"><div className="weekly-panel"><div className="section-heading"><div><h2>15-day expenditure</h2><p className="muted">Your spend across the last 15 days</p></div><strong className="weekly-total">{currency.format(Math.max(...weeklyExpenditure.map((day) => day.total), 0))}</strong></div><div className="weekly-chart" aria-label="15-day expenditure chart"><svg viewBox="0 0 370 160" preserveAspectRatio="none" role="img" aria-label="15-day expenditure bar chart"><g>{chartBars.map((bar) => <g key={bar.key} className="chart-bar-group"><rect className="chart-bar" x={bar.x} y={bar.y} width={bar.width} height={bar.height} rx="4" /><text className="chart-value" x={bar.x + bar.width / 2} y={bar.y - 8} textAnchor="middle">{currency.format(bar.total)}</text><text className="chart-label" x={bar.x + bar.width / 2} y="150" textAnchor="middle">{bar.label}</text></g>)}</g></svg></div></div><div className="section-heading"><div><h2>Recent activity</h2><p className="muted">Your latest income and expenses</p></div><button className="filter-button" type="button">All activity <span>⌄</span></button></div><div className="transaction-list">{Object.entries(groupedTransactions).map(([date, entries]) => <div className="date-group" key={date}><div className="date-label">{formatDate(date)} <span>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })}</span></div>{entries.map((transaction) => <div className="transaction" key={transaction.id}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div><button className="delete-button" type="button" aria-label={`Delete ${transaction.title}`} onClick={() => save(transactions.filter((item) => item.id !== transaction.id))}>×</button></div>)}</div>)}</div><label className="history-title-field">History title<input value={historyTitle} onChange={(event) => setHistoryTitle(event.target.value)} placeholder="e.g. September expenses" required /></label><button className="export-button" type="button" onClick={archiveTransactions} disabled={!transactions.length || !historyTitle.trim()}>Save to expense history</button>{archiveMessage && <p className="database-note">{archiveMessage}</p>}</section>
         {/* Provide controls for adding income and expense entries. */}
-        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isChoosingDatabaseDirectory}>{isChoosingDatabaseDirectory ? 'Opening folder picker…' : 'Choose folder'}</button> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The workbook is saved on this device in this browser.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside></div>
+        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <>{savedDirectoryHandle && !directoryHandle && <button className="folder-button" type="button" onClick={reconnectSavedDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Reconnecting…' : 'Reconnect saved folder'}</button>}<button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Connecting…' : 'Choose folder'}</button></> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The browser remembers the folder, but may ask you to reconnect if permission expires.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside></div>
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
     </main>
   )

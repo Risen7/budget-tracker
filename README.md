@@ -2,7 +2,7 @@
 
 ## Excel database folder
 
-Use **Choose folder** in the dashboard to select a folder for `budget-database.xlsx`. The workbook is read and updated in your browser, including when the dashboard is deployed to Vercel. Your browser remembers the selection and may ask you to reconnect it later. Folder access requires Chrome or Edge on a secure connection; the workbook remains on that device and is not uploaded or shared with other users.
+Use **Choose folder** in the dashboard to select a folder for `budget-database.xlsx`. The workbook is read and updated in your browser, including when the dashboard is deployed to Vercel. Your browser remembers the selection. If it asks for permission again, use **Reconnect saved folder** to grant access without selecting the folder again; if that permission cannot be restored, choose the folder again. Folder access requires Chrome or Edge on a secure connection; the workbook remains on that device and is not uploaded or shared with other users.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

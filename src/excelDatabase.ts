@@ -14,6 +14,7 @@ export type Transaction = {
 
 export type BrowserDirectoryHandle = FileSystemDirectoryHandle & {
   queryPermission: (descriptor: { mode: 'readwrite' }) => Promise<PermissionState>
+  requestPermission: (descriptor: { mode: 'readwrite' }) => Promise<PermissionState>
 }
 
 type DirectoryPickerWindow = Window & {
@@ -154,7 +155,7 @@ export async function writeWorkbook(handle: BrowserDirectoryHandle, data: Workbo
 export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<WorkbookData> {
   const permission = await handle.queryPermission({ mode: 'readwrite' })
   if (permission !== 'granted') {
-    throw new Error('Folder access needs permission again. Choose the folder to reconnect.')
+    throw new Error('Folder access needs permission again. Reconnect the saved folder or choose it again.')
   }
 
   const fileHandle = await handle.getFileHandle(databaseFileName, { create: true })
