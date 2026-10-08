@@ -29,6 +29,16 @@ const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: '
 // Capture today's date as YYYY-MM-DD for the transaction date input.
 const today = new Date().toISOString().slice(0, 10)
 
+// Format the current local date for the dashboard greeting.
+function formatCurrentDate() {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 // Convert stored ISO dates into friendly labels for the activity list.
 function formatDate(date: string) {
   // Label the current sample day as Today.
@@ -42,6 +52,10 @@ function formatDate(date: string) {
 
 // Render the complete budget dashboard.
 function App() {
+  // Restore the user's saved color theme, defaulting to light mode.
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (
+    window.localStorage.getItem('budget-tracker-theme') === 'dark' ? 'dark' : 'light'
+  ))
   // Hold the transactions loaded from the selected Excel workbook.
   const [transactions, setTransactions] = useState<Transaction[]>([])
   // Hold transactions that have been moved into expense history.
@@ -72,6 +86,12 @@ function App() {
   const [directoryHandle, setDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
   // Keep the saved handle available when browser permission must be renewed.
   const [savedDirectoryHandle, setSavedDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
+
+  // Apply the selected theme to the page and remember it for the next visit.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('budget-tracker-theme', theme)
+  }, [theme])
 
   // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
@@ -422,9 +442,9 @@ function App() {
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
       {/* Show the brand, subtitle, and account shortcut. */}
-      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
+      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="theme-toggle" role="group" aria-label="Color theme"><button type="button" aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>Light</button><button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>Dark</button></div><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
       {/* Show the current day and selected reporting month. */}
-      <section className="welcome-row"><div><p className="eyebrow">Sunday, September 20, 2026</p><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
+      <section className="welcome-row"><div><p className="eyebrow">{formatCurrentDate()}</p><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
       {/* Display the calculated balance, income, and expense totals. */}
       <section className="stats-grid" aria-label="Financial summary"><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
       {/* Place the daily activity list beside the entry form. */}

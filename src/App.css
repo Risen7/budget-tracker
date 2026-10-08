@@ -22,6 +22,77 @@
 	.history-count { font-size: 14px; }
 	.chart-label { font-size: 11px; }
 }
+
+/* Keep the theme selector compact in the dashboard header. */
+.theme-toggle { display: flex; gap: 2px; margin-left: auto; padding: 3px; border: 1px solid #ded6d3; border-radius: 7px; background: #f3efed; }
+.theme-toggle button { border: 0; border-radius: 5px; padding: 7px 10px; background: transparent; color: #4d4644; font-size: 12px; cursor: pointer; }
+.theme-toggle button[aria-pressed='true'] { background: #fffdfc; box-shadow: 0 1px 4px #211f1f20; font-weight: 700; }
+.theme-toggle + .avatar { margin-left: 4px; }
+
+/* Replace the light surfaces and text with readable dark-mode colors. */
+:root[data-theme='dark'] { color-scheme: dark; background: #151313; color: #f2eeee; }
+:root[data-theme='dark'] body { background: #151313; color: #f2eeee; }
+:root[data-theme='dark'] .topbar { border-color: #393333; }
+:root[data-theme='dark'] .topbar span,
+:root[data-theme='dark'] .muted,
+:root[data-theme='dark'] .eyebrow,
+:root[data-theme='dark'] .date-label { color: #b0a5a2; }
+:root[data-theme='dark'] .welcome-row h1,
+:root[data-theme='dark'] .section-heading h2,
+:root[data-theme='dark'] .history-group h3 { color: #f6f0ee; }
+:root[data-theme='dark'] .stat-card,
+:root[data-theme='dark'] .transactions-panel,
+:root[data-theme='dark'] .add-panel,
+:root[data-theme='dark'] .history-panel,
+:root[data-theme='dark'] .email-export-panel,
+:root[data-theme='dark'] .month-chip,
+:root[data-theme='dark'] .filter-button { background: #211e1e; border-color: #393333; color: #eee8e6; }
+:root[data-theme='dark'] .stat-card.balance { background: #302829; border-color: #493637; }
+:root[data-theme='dark'] .stat-label,
+:root[data-theme='dark'] .balance .stat-label { color: #d0c3c1; }
+:root[data-theme='dark'] .weekly-panel { background: #292424; border-color: #403838; }
+:root[data-theme='dark'] .weekly-total,
+:root[data-theme='dark'] .transaction-info strong,
+:root[data-theme='dark'] .transaction-info span,
+:root[data-theme='dark'] .amount { color: #eee8e6; }
+:root[data-theme='dark'] .transaction { border-color: #393333; }
+:root[data-theme='dark'] .transaction-icon.income { background: #492c30; color: #ff9ba2; }
+:root[data-theme='dark'] .transaction-icon.expense { background: #363030; color: #e4d9d6; }
+:root[data-theme='dark'] .income-amount { color: #ff9ba2; }
+:root[data-theme='dark'] .chart-label { fill: #c8bcba; }
+:root[data-theme='dark'] .chart-value { fill: #f2eeee; }
+:root[data-theme='dark'] .type-toggle { background: #302b2b; }
+:root[data-theme='dark'] .type-toggle button { color: #c8bcba; }
+:root[data-theme='dark'] .type-toggle button.selected { background: #494040; color: #fff; }
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select { background: #292424; border-color: #494040; color: #f2eeee; }
+:root[data-theme='dark'] input:focus,
+:root[data-theme='dark'] select:focus { border-color: #e3424d; box-shadow: 0 0 0 3px #bd202b40; }
+:root[data-theme='dark'] .add-button { background: #bd202b; }
+:root[data-theme='dark'] .add-button:hover { background: #d8323d; }
+:root[data-theme='dark'] .export-button,
+:root[data-theme='dark'] .folder-button,
+:root[data-theme='dark'] .collapse-toggle { background: #292424; border-color: #5b4042; color: #ffabb0; }
+:root[data-theme='dark'] .export-button:hover,
+:root[data-theme='dark'] .folder-button:hover:not(:disabled) { background: #392729; }
+:root[data-theme='dark'] .database-location { border-color: #393333; }
+:root[data-theme='dark'] .database-location > p:first-child,
+:root[data-theme='dark'] .database-location code { color: #d0c3c1; }
+:root[data-theme='dark'] .database-note { color: #b0a5a2; }
+:root[data-theme='dark'] .database-error,
+:root[data-theme='dark'] .database-location .database-error { color: #ff9ba2; }
+:root[data-theme='dark'] .history-count { background: #393333; color: #f2eeee; }
+:root[data-theme='dark'] .theme-toggle { background: #292424; border-color: #494040; }
+:root[data-theme='dark'] .theme-toggle button { color: #d0c3c1; }
+:root[data-theme='dark'] .theme-toggle button[aria-pressed='true'] { background: #4a4141; color: #fff; }
+:root[data-theme='dark'] .avatar { background: #bd202b; color: #fff; }
+
+/* Allow the header controls to wrap comfortably on narrow phones. */
+@media (max-width: 420px) {
+	.theme-toggle { margin-left: auto; }
+	.theme-toggle button { padding: 7px 8px; }
+	.theme-toggle + .avatar { display: none; }
+}
 /* Style .weekly-total using the declarations on this line. */
 .weekly-total { color: #2c2827; font: 700 15px Georgia, serif; }
 /* Style .weekly-chart using the declarations on this line. */
