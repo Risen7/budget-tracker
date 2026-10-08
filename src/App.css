@@ -93,6 +93,162 @@
 	.theme-toggle button { padding: 7px 8px; }
 	.theme-toggle + .avatar { display: none; }
 }
+
+/* Increase dashboard text sizes for easier reading on desktop and mobile. */
+.topbar strong { font-size: 19px; }
+.topbar span, .eyebrow, .muted, .month-chip, .filter-button { font-size: 15px; }
+.welcome-row h1 { font-size: clamp(34px, 4vw, 46px); }
+.section-heading h2 { font-size: 22px; }
+.stat-label { font-size: 13px; }
+.stat-card strong { font-size: 32px; }
+.trend { font-size: 13px; }
+.date-label { font-size: 13px; }
+.transaction-info strong { font-size: 16px; }
+.transaction-info span { font-size: 14px; }
+.amount { font-size: 16px; }
+.type-toggle button, .add-button, .export-button, .folder-button, .collapse-toggle { font-size: 14px; }
+form label, .history-title-field, .email-export-panel label { font-size: 14px; }
+input, select { font-size: 16px; }
+.database-note, .database-location > p:first-child { font-size: 13px; }
+.database-location code, .database-location .database-error { font-size: 12px; }
+.history-count { font-size: 14px; }
+.history-group h3 { font-size: 15px; }
+.weekly-total { font-size: 17px; }
+.weekly-panel .section-heading h2 { font-size: 19px; }
+.weekly-panel .stat-label { font-size: 11px; }
+.weekly-panel .stat-card strong { font-size: 21px; }
+.weekly-panel .transaction-info strong { font-size: 14px; }
+.weekly-panel .transaction-info span, .weekly-panel .amount { font-size: 13px; }
+.chart-label { font-size: 11px; }
+.theme-toggle button { font-size: 14px; }
+
+/* Give mobile text a little more size while keeping form text zoom-safe. */
+@media (max-width: 760px) {
+	.topbar strong { font-size: 20px; }
+	.topbar span, .eyebrow, .muted, .month-chip, .filter-button { font-size: 16px; }
+	.welcome-row h1 { font-size: clamp(36px, 9vw, 46px); }
+	.section-heading h2 { font-size: 23px; }
+	.stat-label, .trend, .date-label { font-size: 14px; }
+	.stat-card strong { font-size: 32px; }
+	.transaction-info strong, .amount { font-size: 17px; }
+	.transaction-info span, .type-toggle button, .add-button, .export-button, .folder-button { font-size: 16px; }
+	form label, .history-title-field, .email-export-panel label { font-size: 15px; }
+	.database-note, .database-location > p:first-child, .history-count, .theme-toggle button { font-size: 14px; }
+	.database-location code, .database-location .database-error { font-size: 13px; }
+	.weekly-panel .section-heading h2 { font-size: 20px; }
+	.weekly-panel .stat-label { font-size: 12px; }
+	.weekly-panel .stat-card strong { font-size: 22px; }
+	.weekly-panel .transaction-info strong { font-size: 15px; }
+	.weekly-panel .transaction-info span, .weekly-panel .amount { font-size: 14px; }
+	.chart-label { font-size: 12px; }
+}
+
+/* Use a narrower sans-serif throughout the dashboard, including serif-style headings and totals. */
+.app-shell,
+.app-shell .weekly-total,
+.app-shell .brand-mark,
+.app-shell .topbar strong,
+.app-shell .welcome-row h1,
+.app-shell .stat-card strong,
+.app-shell .section-heading h2,
+.app-shell .amount,
+.app-shell .history-group h3 {
+	font-family: 'Arial Narrow', 'Roboto Condensed', 'Aptos Narrow', 'Segoe UI', sans-serif;
+}
+
+/* Define the three user-selectable dashboard text scales. */
+/* Make the smallest setting reduce text size by ten percent. */
+:root[data-font-size-scale='0'] { --dashboard-font-scale: 0.9; }
+/* Keep the middle setting at the current default text size. */
+:root[data-font-size-scale='1'] { --dashboard-font-scale: 1; }
+/* Make the largest setting increase text size by ten percent. */
+:root[data-font-size-scale='2'] { --dashboard-font-scale: 1.1; }
+
+/* Scale text independently from panel spacing and other layout dimensions. */
+/* Scale the brand name while preserving its compact font family. */
+.app-shell .topbar strong { font-size: calc(20px * var(--dashboard-font-scale, 1)); }
+/* Scale header subtitles, date labels, helper text, and top-level controls. */
+.app-shell .topbar span,
+.app-shell .eyebrow,
+.app-shell .muted,
+.app-shell .month-chip,
+.app-shell .filter-button { font-size: calc(16px * var(--dashboard-font-scale, 1)); }
+/* Scale the main greeting independently from body text. */
+.app-shell .welcome-row h1 { font-size: calc(46px * var(--dashboard-font-scale, 1)); }
+/* Scale section headings. */
+.app-shell .section-heading h2 { font-size: calc(23px * var(--dashboard-font-scale, 1)); }
+/* Scale small dashboard labels and date-group headings. */
+.app-shell .stat-label,
+.app-shell .trend,
+.app-shell .date-label { font-size: calc(14px * var(--dashboard-font-scale, 1)); }
+/* Scale prominent financial totals. */
+.app-shell .stat-card strong { font-size: calc(32px * var(--dashboard-font-scale, 1)); }
+/* Scale transaction descriptions and amounts. */
+.app-shell .transaction-info strong,
+.app-shell .amount { font-size: calc(17px * var(--dashboard-font-scale, 1)); }
+/* Scale secondary transaction details. */
+.app-shell .transaction-info span { font-size: calc(16px * var(--dashboard-font-scale, 1)); }
+/* Scale interactive controls and folder actions. */
+.app-shell .type-toggle button,
+.app-shell .add-button,
+.app-shell .export-button,
+.app-shell .folder-button { font-size: calc(16px * var(--dashboard-font-scale, 1)); }
+/* Scale form labels and the archive-title field label. */
+.app-shell form label,
+.app-shell .history-title-field,
+.app-shell .email-export-panel label { font-size: calc(15px * var(--dashboard-font-scale, 1)); }
+/* Scale form values while keeping input text at least 16px on mobile browsers. */
+.app-shell input,
+.app-shell select { font-size: max(16px, calc(16px * var(--dashboard-font-scale, 1))); }
+/* Scale counts, helper notes, and theme-selector text. */
+.app-shell .database-note,
+.app-shell .database-location > p:first-child,
+.app-shell .history-count,
+.app-shell .theme-toggle button { font-size: calc(14px * var(--dashboard-font-scale, 1)); }
+/* Scale technical folder details and validation messages. */
+.app-shell .database-location code,
+.app-shell .database-location .database-error { font-size: calc(13px * var(--dashboard-font-scale, 1)); }
+/* Scale archive headings and the weekly summary total. */
+.app-shell .history-group h3,
+.app-shell .weekly-total { font-size: calc(17px * var(--dashboard-font-scale, 1)); }
+/* Scale compact section headings inside history cards. */
+.app-shell .weekly-panel .section-heading h2 { font-size: calc(20px * var(--dashboard-font-scale, 1)); }
+/* Scale labels inside the small summary cards. */
+.app-shell .weekly-panel .stat-label { font-size: calc(12px * var(--dashboard-font-scale, 1)); }
+/* Scale totals inside compact summary cards. */
+.app-shell .weekly-panel .stat-card strong { font-size: calc(22px * var(--dashboard-font-scale, 1)); }
+/* Scale transaction titles inside saved-history rows. */
+.app-shell .weekly-panel .transaction-info strong { font-size: calc(15px * var(--dashboard-font-scale, 1)); }
+/* Scale secondary values inside saved-history rows. */
+.app-shell .weekly-panel .transaction-info span,
+.app-shell .weekly-panel .amount { font-size: calc(14px * var(--dashboard-font-scale, 1)); }
+/* Scale the visible day labels inside the expenditure chart. */
+.app-shell .chart-label { font-size: calc(12px * var(--dashboard-font-scale, 1)); }
+
+/* Keep the text controls compact and visibly usable in the header. */
+/* Arrange decrease and increase controls in one compact group. */
+.text-size-controls { display: flex; align-items: center; gap: 3px; margin-left: auto; padding: 3px; border: 1px solid #ded6d3; border-radius: 7px; background: #f3efed; }
+/* Give the text-size buttons clear targets and matching header colors. */
+.text-size-controls button { min-width: 34px; min-height: 32px; border: 0; border-radius: 5px; background: transparent; color: #4d4644; font-size: 15px; font-weight: 700; cursor: pointer; }
+/* Show when the selected size has reached either supported limit. */
+.text-size-controls button:disabled { cursor: not-allowed; opacity: .45; }
+/* Keep the selected percentage centered between the controls. */
+.text-size-controls span { min-width: 38px; color: #4d4644; font-size: 11px; text-align: center; }
+/* Match the font-size control container to dark mode surfaces. */
+:root[data-theme='dark'] .text-size-controls { background: #292424; border-color: #494040; }
+/* Keep dark-mode button and percentage text readable. */
+:root[data-theme='dark'] .text-size-controls button,
+:root[data-theme='dark'] .text-size-controls span { color: #eee8e6; }
+/* Keep disabled controls visibly muted in dark mode. */
+:root[data-theme='dark'] .text-size-controls button:disabled { color: #b0a5a2; }
+
+/* Let the header controls wrap onto a second row on narrow screens. */
+@media (max-width: 420px) {
+	/* Allow the header height to grow when its controls wrap. */
+	.topbar { height: auto; min-height: 84px; flex-wrap: wrap; row-gap: 8px; padding: 12px 0; }
+	/* Keep the size controls aligned to the right when the controls wrap. */
+	.text-size-controls { margin-left: auto; }
+}
 /* Style .weekly-total using the declarations on this line. */
 .weekly-total { color: #2c2827; font: 700 15px Georgia, serif; }
 /* Style .weekly-chart using the declarations on this line. */

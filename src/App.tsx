@@ -56,6 +56,11 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (
     window.localStorage.getItem('budget-tracker-theme') === 'dark' ? 'dark' : 'light'
   ))
+  // Restore the saved text-size step, using the middle step as the default.
+  const [fontSizeScale, setFontSizeScale] = useState(() => {
+    const savedScale = Number(window.localStorage.getItem('budget-tracker-font-size'))
+    return Number.isInteger(savedScale) && savedScale >= 0 && savedScale <= 2 ? savedScale : 1
+  })
   // Hold the transactions loaded from the selected Excel workbook.
   const [transactions, setTransactions] = useState<Transaction[]>([])
   // Hold transactions that have been moved into expense history.
@@ -92,6 +97,12 @@ function App() {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('budget-tracker-theme', theme)
   }, [theme])
+
+  // Apply and persist the selected text size so it is shared by both themes.
+  useEffect(() => {
+    document.documentElement.dataset.fontSizeScale = String(fontSizeScale)
+    window.localStorage.setItem('budget-tracker-font-size', String(fontSizeScale))
+  }, [fontSizeScale])
 
   // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
@@ -442,7 +453,7 @@ function App() {
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
       {/* Show the brand, subtitle, and account shortcut. */}
-      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="theme-toggle" role="group" aria-label="Color theme"><button type="button" aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>Light</button><button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>Dark</button></div><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
+      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="text-size-controls" role="group" aria-label="Text size"><button type="button" aria-label="Decrease text size" onClick={() => setFontSizeScale((size) => Math.max(0, size - 1))} disabled={fontSizeScale === 0}>A−</button><span aria-live="polite">{fontSizeScale === 0 ? '90%' : fontSizeScale === 1 ? '100%' : '110%'}</span><button type="button" aria-label="Increase text size" onClick={() => setFontSizeScale((size) => Math.min(2, size + 1))} disabled={fontSizeScale === 2}>A+</button></div><div className="theme-toggle" role="group" aria-label="Color theme"><button type="button" aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>Light</button><button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>Dark</button></div><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
       {/* Show the current day and selected reporting month. */}
       <section className="welcome-row"><div><p className="eyebrow">{formatCurrentDate()}</p><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
       {/* Display the calculated balance, income, and expense totals. */}
