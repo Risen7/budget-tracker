@@ -26,8 +26,58 @@ import './App.css'
 // Format all displayed amounts consistently as Philippine pesos.
 const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
-// Capture today's date as YYYY-MM-DD for the transaction date input.
-const today = new Date().toISOString().slice(0, 10)
+// Format a local calendar date as YYYY-MM-DD for transaction matching.
+function toISODate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Capture today's local date for the transaction date input.
+const today = toISODate(new Date())
+
+type TodoItem = {
+  id: string
+  title: string
+  completed: boolean
+}
+
+type TodoStorageState = {
+  items: TodoItem[]
+  writable: boolean
+  message: string
+}
+
+function readTodoStorage(): TodoStorageState {
+  try {
+    const savedItems = window.localStorage.getItem('budget-tracker-todos')
+    if (!savedItems) return { items: [], writable: true, message: '' }
+    const parsed: unknown = JSON.parse(savedItems)
+    if (!Array.isArray(parsed) || !parsed.every((item) => (
+      typeof item.id === 'string'
+      && typeof item.title === 'string'
+      && typeof item.completed === 'boolean'
+    ))) {
+      throw new Error('Saved to-do list has an invalid format.')
+    }
+    const savedDate = window.localStorage.getItem('budget-tracker-todos-date')
+    const items = parsed as TodoItem[]
+    return {
+      items: savedDate && savedDate !== toISODate(new Date())
+        ? items.map((item) => ({ ...item, completed: false }))
+        : items,
+      writable: true,
+      message: '',
+    }
+  } catch (error) {
+    return {
+      items: [],
+      writable: false,
+      message: error instanceof Error ? error.message : 'Unable to load saved to-do items.',
+    }
+  }
+}
 
 // Format the current local date for the dashboard greeting.
 function formatCurrentDate() {
@@ -71,6 +121,10 @@ function App() {
   const [title, setTitle] = useState('')
   // Track the selected transaction category.
   const [category, setCategory] = useState('Food')
+  // Filter recent activity to one transaction date, or show every date.
+  const [activityDate, setActivityDate] = useState('all')
+  // Track date groups manually while defaulting today's activity to collapsed.
+  const [collapsedActivityGroups, setCollapsedActivityGroups] = useState<Record<string, boolean>>({})
   // Track the new amount as text while the user types.
   const [amount, setAmount] = useState('')
   // Track the date selected for the new transaction.
@@ -79,6 +133,10 @@ function App() {
   const [archiveMessage, setArchiveMessage] = useState('')
   // Track the title used to group an archived batch.
   const [historyTitle, setHistoryTitle] = useState('')
+  // Hold dashboard to-do items and their form input.
+  const [todoState, setTodoState] = useState(readTodoStorage)
+  const { items: todoItems, writable: todoStorageWritable, message: todoMessage } = todoState
+  const [todoDraft, setTodoDraft] = useState('')
   // Track which saved history groups are expanded or collapsed.
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   // Show the current folder used for the Excel workbook.
@@ -103,6 +161,46 @@ function App() {
     document.documentElement.dataset.fontSizeScale = String(fontSizeScale)
     window.localStorage.setItem('budget-tracker-font-size', String(fontSizeScale))
   }, [fontSizeScale])
+
+  function saveTodoItems(items: TodoItem[]) {
+    try {
+      window.localStorage.setItem('budget-tracker-todos', JSON.stringify(items))
+      window.localStorage.setItem('budget-tracker-todos-date', toISODate(new Date()))
+      setTodoState((current) => ({ ...current, items }))
+      return true
+    } catch (error) {
+      setTodoState((current) => ({
+        ...current,
+        writable: false,
+        message: error instanceof Error ? error.message : 'Unable to save to-do items.',
+      }))
+      return false
+    }
+  }
+
+  // Keep the task list saved, and clear completion checks when a new day begins.
+  useEffect(() => {
+    if (!todoStorageWritable) return
+    const dailyReset = window.setInterval(() => {
+      const currentDate = toISODate(new Date())
+      try {
+        const savedDate = window.localStorage.getItem('budget-tracker-todos-date')
+        if (!savedDate) {
+          window.localStorage.setItem('budget-tracker-todos-date', currentDate)
+        } else if (savedDate !== currentDate) {
+          saveTodoItems(todoItems.map((item) => ({ ...item, completed: false })))
+        }
+      } catch (error) {
+        setTodoState((current) => ({
+          ...current,
+          writable: false,
+          message: error instanceof Error ? error.message : 'Unable to reset to-do items for the new day.',
+        }))
+      }
+    }, 60_000)
+
+    return () => window.clearInterval(dailyReset)
+  }, [todoItems, todoStorageWritable])
 
   // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
@@ -161,7 +259,7 @@ function App() {
       // Move the date back from today to the day represented by this index.
       date.setDate(date.getDate() - (14 - index))
       // Convert the date to the same ISO format stored on transactions.
-      const isoDate = date.toISOString().slice(0, 10)
+      const isoDate = toISODate(date)
       // Add the amounts of expenses whose date matches this chart day.
       const total = transactions
         // Perform this step in the dashboard calculation or state update.
@@ -186,6 +284,7 @@ function App() {
     return days
   // Recalculate chart values whenever the active transaction list changes.
   }, [transactions])
+  const todayExpense = weeklyExpenditure[weeklyExpenditure.length - 1]?.total ?? 0
 
   // Ensure bars have a nonzero scale even when there are no recent expenses.
   const chartMax = Math.max(...weeklyExpenditure.map((item) => item.total), 1)
@@ -205,15 +304,29 @@ function App() {
   // Close the current callback, block, or value collection.
   })
 
+  function showActivityForDate(date: string) {
+    setActivityDate('all')
+    setCollapsedActivityGroups((current) => ({ ...current, [date]: false }))
+    window.setTimeout(() => {
+      const target = document.getElementById(`activity-day-${date}`)
+        ?? document.getElementById('recent-activity-heading')
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
+  }
+
   // Organize entries by date so the activity list can show daily groups.
   // Group each transaction under its ISO date for the recent-activity list.
-  const groupedTransactions = useMemo(() => transactions.reduce<Record<string, Transaction[]>>((groups, transaction) => {
-    // Append the current transaction to its date group.
-    groups[transaction.date] = [...(groups[transaction.date] ?? []), transaction]
-    // Return the running date groups for the next transaction.
-    return groups
-  // Perform this step in the dashboard calculation or state update.
-  }, {}), [transactions])
+  const groupedTransactions = useMemo(() => transactions
+    .filter((transaction) => activityDate === 'all' || transaction.date === activityDate)
+    .reduce<Record<string, Transaction[]>>((groups, transaction) => {
+      // Append the current transaction to its date group.
+      groups[transaction.date] = [...(groups[transaction.date] ?? []), transaction]
+      // Return the running date groups for the next transaction.
+      return groups
+    // Perform this step in the dashboard calculation or state update.
+    }, {}), [transactions, activityDate])
+  const activityDates = useMemo(() => [...new Set(transactions.map((transaction) => transaction.date))]
+    .sort((first, second) => second.localeCompare(first)), [transactions])
 
   // Compute summaryCards to hold a value used by the surrounding dashboard logic.
   const summaryCards = useMemo(() => {
@@ -448,20 +561,104 @@ function App() {
   // Close the current callback, block, or value collection.
   }
 
+  // Add a new to-do item to the list.
+  function addTodo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedTitle = todoDraft.trim()
+    if (!trimmedTitle || !todoStorageWritable) return
+    const saved = saveTodoItems([...todoItems, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      title: trimmedTitle,
+      completed: false,
+    }])
+    if (saved) setTodoDraft('')
+  }
+
   // Return the dashboard layout and its interactive controls.
   return (
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
       {/* Show the brand, subtitle, and account shortcut. */}
-      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="text-size-controls" role="group" aria-label="Text size"><button type="button" aria-label="Decrease text size" onClick={() => setFontSizeScale((size) => Math.max(0, size - 1))} disabled={fontSizeScale === 0}>A−</button><span aria-live="polite">{fontSizeScale === 0 ? '90%' : fontSizeScale === 1 ? '100%' : '110%'}</span><button type="button" aria-label="Increase text size" onClick={() => setFontSizeScale((size) => Math.min(2, size + 1))} disabled={fontSizeScale === 2}>A+</button></div><div className="theme-toggle" role="group" aria-label="Color theme"><button type="button" aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>Light</button><button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>Dark</button></div><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
+      <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="text-size-controls" role="group" aria-label="Text size"><button type="button" aria-label="Decrease text size" onClick={() => setFontSizeScale((size) => Math.max(0, size - 1))} disabled={fontSizeScale === 0}>A−</button><span aria-live="polite">{fontSizeScale === 0 ? '90%' : fontSizeScale === 1 ? '100%' : '110%'}</span><button type="button" aria-label="Increase text size" onClick={() => setFontSizeScale((size) => Math.min(2, size + 1))} disabled={fontSizeScale === 2}>A+</button></div><button className="theme-toggle" type="button" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} aria-pressed={theme === 'dark'} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+        {theme === 'light'
+          ? <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M20.2 15.4A8.5 8.5 0 0 1 8.6 3.8 8.5 8.5 0 1 0 20.2 15.4Z" /></svg>
+          : <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>}
+      </button><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
       {/* Show the current day and selected reporting month. */}
-      <section className="welcome-row"><div><p className="eyebrow">{formatCurrentDate()}</p><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
+      <section className="welcome-row"><p className="dashboard-date">{formatCurrentDate()}</p><div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
       {/* Display the calculated balance, income, and expense totals. */}
       <section className="stats-grid" aria-label="Financial summary"><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
       {/* Place the daily activity list beside the entry form. */}
-      <div className="content-grid"><section className="transactions-panel"><div className="weekly-panel"><div className="section-heading"><div><h2>15-day expenditure</h2><p className="muted">Your spend across the last 15 days</p></div><strong className="weekly-total">{currency.format(Math.max(...weeklyExpenditure.map((day) => day.total), 0))}</strong></div><div className="weekly-chart" aria-label="15-day expenditure chart"><svg viewBox="0 0 370 160" preserveAspectRatio="none" role="img" aria-label="15-day expenditure bar chart"><g>{chartBars.map((bar) => <g key={bar.key} className="chart-bar-group"><rect className="chart-bar" x={bar.x} y={bar.y} width={bar.width} height={bar.height} rx="4" /><text className="chart-value" x={bar.x + bar.width / 2} y={bar.y - 8} textAnchor="middle">{currency.format(bar.total)}</text><text className="chart-label" x={bar.x + bar.width / 2} y="150" textAnchor="middle">{bar.label}</text></g>)}</g></svg></div></div><div className="section-heading"><div><h2>Recent activity</h2><p className="muted">Your latest income and expenses</p></div><button className="filter-button" type="button">All activity <span>⌄</span></button></div><div className="transaction-list">{Object.entries(groupedTransactions).map(([date, entries]) => <div className="date-group" key={date}><div className="date-label">{formatDate(date)} <span>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })}</span></div>{entries.map((transaction) => <div className="transaction" key={transaction.id}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div><button className="delete-button" type="button" aria-label={`Delete ${transaction.title}`} onClick={() => save(transactions.filter((item) => item.id !== transaction.id))}>×</button></div>)}</div>)}</div><label className="history-title-field">History title<input value={historyTitle} onChange={(event) => setHistoryTitle(event.target.value)} placeholder="e.g. September expenses" required /></label><button className="export-button" type="button" onClick={archiveTransactions} disabled={!transactions.length || !historyTitle.trim()}>Save to expense history</button>{archiveMessage && <p className="database-note">{archiveMessage}</p>}</section>
+      <div className="content-grid">
+        <section className="transactions-panel">
+          <div className="weekly-panel">
+            <div className="section-heading">
+              <div><h2>15-day expenditure</h2><p className="muted">Your spend across the last 15 days</p></div>
+              <strong className="weekly-total" aria-label={`Today's expenses: ${currency.format(todayExpense)}`}>{currency.format(todayExpense)}</strong>
+            </div>
+            <div className="weekly-chart" aria-label="15-day expenditure chart">
+              <svg viewBox="0 0 370 160" preserveAspectRatio="none" role="img" aria-label="15-day expenditure bar chart">
+                <g>{chartBars.map((bar) => <g key={bar.key} className="chart-bar-group" role="button" tabIndex={0} aria-label={`${new Date(`${bar.key}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}: ${currency.format(bar.total)} expenses. Show recent activity.`} onClick={() => showActivityForDate(bar.key)} onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    showActivityForDate(bar.key)
+                  }
+                }}><rect className="chart-bar" x={bar.x} y={bar.y} width={bar.width} height={bar.height} rx="4" /><text className="chart-value" x={bar.x + bar.width / 2} y={bar.y - 8} textAnchor="middle">{currency.format(bar.total)}</text><text className="chart-label" x={bar.x + bar.width / 2} y="150" textAnchor="middle">{bar.label}</text></g>)}</g>
+              </svg>
+            </div>
+          </div>
+          <div className="section-heading">
+            <div id="recent-activity-heading"><h2>Recent activity</h2><p className="muted">Your latest income and expenses</p></div>
+            <select className="filter-button activity-date-filter" aria-label="Filter recent activity by date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)}>
+              <option value="all">All dates</option>
+              {activityDates.map((date) => <option key={date} value={date}>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</option>)}
+            </select>
+          </div>
+          <div className="transaction-list">
+            {Object.entries(groupedTransactions).map(([date, entries]) => {
+              const isCollapsed = collapsedActivityGroups[date] ?? date !== today
+              const activityId = `activity-${date}`
+              return (
+                <div className="date-group" id={`activity-day-${date}`} key={date}>
+                  <div className="activity-day-heading">
+                    <div className="date-label">{formatDate(date)} <span>{new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })}</span></div>
+                    <button className="collapse-toggle activity-day-toggle" type="button" aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} activity for ${date}`} aria-expanded={!isCollapsed} aria-controls={activityId} onClick={() => setCollapsedActivityGroups((current) => ({ ...current, [date]: !isCollapsed }))}>
+                      {isCollapsed ? 'Expand' : 'Collapse'}
+                    </button>
+                  </div>
+                  <div id={activityId} hidden={isCollapsed}>{entries.map((transaction) => <div className="transaction" key={transaction.id}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div><button className="delete-button" type="button" aria-label={`Delete ${transaction.title}`} onClick={() => save(transactions.filter((item) => item.id !== transaction.id))}>×</button></div>)}</div>
+                </div>
+              )
+            })}
+          </div>
+          {Object.keys(groupedTransactions).length === 0 && <p className="muted">No transactions for this date.</p>}
+          <label className="history-title-field">History title<input value={historyTitle} onChange={(event) => setHistoryTitle(event.target.value)} placeholder="e.g. September expenses" required /></label>
+          <button className="export-button" type="button" onClick={archiveTransactions} disabled={!transactions.length || !historyTitle.trim()}>Save to expense history</button>
+          {archiveMessage && <p className="database-note">{archiveMessage}</p>}
+        </section>
         {/* Provide controls for adding income and expense entries. */}
-        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Transport</option><option>Shopping</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <>{savedDirectoryHandle && !directoryHandle && <button className="folder-button" type="button" onClick={reconnectSavedDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Reconnecting…' : 'Reconnect saved folder'}</button>}<button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Connecting…' : 'Choose folder'}</button></> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The browser remembers the folder, but may ask you to reconnect if permission expires.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside></div>
+        <div className="right-column-stack">
+        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Bills</option><option>Transport</option><option>Gala/Mall</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <>{savedDirectoryHandle && !directoryHandle && <button className="folder-button" type="button" onClick={reconnectSavedDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Reconnecting…' : 'Reconnect saved folder'}</button>}<button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Connecting…' : 'Choose folder'}</button></> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The browser remembers the folder, but may ask you to reconnect if permission expires.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside>
+        <section className="todo-panel" aria-labelledby="todo-heading">
+        <div className="section-heading">
+          <div><h2 id="todo-heading">To-do list</h2><p className="muted">{todoItems.filter((item) => !item.completed).length} tasks remaining</p></div>
+        </div>
+        <form className="todo-form" onSubmit={addTodo}>
+          <input aria-label="New to-do item" value={todoDraft} onChange={(event) => setTodoDraft(event.target.value)} placeholder="Add a task…" required disabled={!todoStorageWritable} />
+          <button className="add-button" type="submit" disabled={!todoStorageWritable || !todoDraft.trim()}>Add task</button>
+        </form>
+        {todoMessage && <p className="todo-error" role="alert">{todoMessage}</p>}
+        {!todoItems.length && <p className="todo-empty muted">No tasks yet. Add one above.</p>}
+        <ul className="todo-list">
+          {todoItems.map((item) => (
+            <li className={item.completed ? 'todo-item completed' : 'todo-item'} key={item.id}>
+              <label><input type="checkbox" checked={item.completed} disabled={!todoStorageWritable} onChange={() => saveTodoItems(todoItems.map((todo) => todo.id === item.id ? { ...todo, completed: !todo.completed } : todo))} /><span>{item.title}</span></label>
+              <button className="todo-delete" type="button" aria-label={`Delete ${item.title}`} disabled={!todoStorageWritable} onClick={() => saveTodoItems(todoItems.filter((todo) => todo.id !== item.id))}>×</button>
+            </li>
+          ))}
+        </ul>
+        </section>
+        </div></div>
       {/* Show each archived group, its saved totals, and its expandable transaction list. */}
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
       {/* Close the page wrapper after the archive section. */}
