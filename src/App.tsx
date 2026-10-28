@@ -49,6 +49,56 @@ type TodoStorageState = {
   message: string
 }
 
+type GroceryProduct = {
+  id: string
+  name: string
+  stock: number
+  toBuy: boolean
+  bought: boolean
+}
+
+type GroceryStorageState = {
+  products: GroceryProduct[]
+  writable: boolean
+  message: string
+}
+
+function readGroceryStorage(): GroceryStorageState {
+  try {
+    const savedProducts = window.localStorage.getItem('budget-tracker-grocery-products')
+    if (!savedProducts) return { products: [], writable: true, message: '' }
+    const parsed: unknown = JSON.parse(savedProducts)
+    if (!Array.isArray(parsed) || !parsed.every((product) => (
+      typeof product.id === 'string'
+      && typeof product.name === 'string'
+      && typeof product.stock === 'number'
+      && Number.isFinite(product.stock)
+      && product.stock >= 0
+      && typeof product.toBuy === 'boolean'
+      && (product.bought === undefined || typeof product.bought === 'boolean')
+    ))) {
+      throw new Error('Saved grocery list has an invalid format.')
+    }
+    return {
+      products: parsed.map((product) => ({
+        id: product.id,
+        name: product.name,
+        stock: product.stock,
+        toBuy: product.toBuy,
+        bought: product.bought ?? false,
+      })) as GroceryProduct[],
+      writable: true,
+      message: '',
+    }
+  } catch (error) {
+    return {
+      products: [],
+      writable: false,
+      message: error instanceof Error ? error.message : 'Unable to load saved grocery products.',
+    }
+  }
+}
+
 function readTodoStorage(): TodoStorageState {
   try {
     const savedItems = window.localStorage.getItem('budget-tracker-todos')
@@ -102,6 +152,7 @@ function formatDate(date: string) {
 
 // Render the complete budget dashboard.
 function App() {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets'>('dashboard')
   // Restore the user's saved color theme, defaulting to light mode.
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (
     window.localStorage.getItem('budget-tracker-theme') === 'dark' ? 'dark' : 'light'
@@ -137,6 +188,9 @@ function App() {
   const [todoState, setTodoState] = useState(readTodoStorage)
   const { items: todoItems, writable: todoStorageWritable, message: todoMessage } = todoState
   const [todoDraft, setTodoDraft] = useState('')
+  const [groceryState, setGroceryState] = useState(readGroceryStorage)
+  const { products: groceryProducts, writable: groceryStorageWritable, message: groceryMessage } = groceryState
+  const [groceryName, setGroceryName] = useState('')
   // Track which saved history groups are expanded or collapsed.
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   // Show the current folder used for the Excel workbook.
@@ -574,6 +628,41 @@ function App() {
     if (saved) setTodoDraft('')
   }
 
+  function saveGroceryProducts(products: GroceryProduct[]) {
+    try {
+      window.localStorage.setItem('budget-tracker-grocery-products', JSON.stringify(products))
+      setGroceryState((current) => ({ ...current, products }))
+      return true
+    } catch (error) {
+      setGroceryState((current) => ({
+        ...current,
+        writable: false,
+        message: error instanceof Error ? error.message : 'Unable to save grocery products.',
+      }))
+      return false
+    }
+  }
+
+  function addGroceryProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const name = groceryName.trim()
+    if (!name || !groceryStorageWritable) return
+    const saved = saveGroceryProducts([...groceryProducts, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      stock: 0,
+      toBuy: true,
+      bought: false,
+    }])
+    if (!saved) return
+    setGroceryName('')
+  }
+
+  const priorityGroceryProducts = [...groceryProducts].sort(
+    (first, second) => Number(first.bought) - Number(second.bought)
+      || Number(second.toBuy) - Number(first.toBuy),
+  )
+
   // Return the dashboard layout and its interactive controls.
   return (
     // Wrap the complete dashboard in its centered page container.
@@ -584,6 +673,11 @@ function App() {
           ? <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M20.2 15.4A8.5 8.5 0 0 1 8.6 3.8 8.5 8.5 0 1 0 20.2 15.4Z" /></svg>
           : <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>}
       </button><button className="avatar" type="button" aria-label="Account menu">JD</button></header>
+      <nav className="main-tabs" role="tablist" aria-label="Main sections">
+        <button id="dashboard-tab" className={activeTab === 'dashboard' ? 'main-tab active' : 'main-tab'} type="button" role="tab" aria-selected={activeTab === 'dashboard'} aria-controls="dashboard-content" onClick={() => setActiveTab('dashboard')}>Dashboard</button>
+        <button id="budgets-tab" className={activeTab === 'budgets' ? 'main-tab active' : 'main-tab'} type="button" role="tab" aria-selected={activeTab === 'budgets'} aria-controls="budgets-content" onClick={() => setActiveTab('budgets')}>Budgets</button>
+      </nav>
+      {activeTab === 'dashboard' ? <div id="dashboard-content" role="tabpanel" aria-labelledby="dashboard-tab">
       {/* Show the current day and selected reporting month. */}
       <section className="welcome-row"><p className="dashboard-date">{formatCurrentDate()}</p><div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
       {/* Display the calculated balance, income, and expense totals. */}
@@ -661,7 +755,52 @@ function App() {
         </div></div>
       {/* Show each archived group, its saved totals, and its expandable transaction list. */}
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
-      {/* Close the page wrapper after the archive section. */}
+      </div> : <section id="budgets-content" className="budgets-page" role="tabpanel" aria-labelledby="budgets-tab">
+        <div className="budgets-heading">
+          <div><p className="eyebrow">Plan your spending</p><h1>Budgets</h1><p className="muted">Keep everyday spending and upcoming plans organized.</p></div>
+          <span className="budgets-total-label">7 budget categories</span>
+        </div>
+        <div className="budget-cards">
+          <article className="budget-card grocery">
+            <div className="grocery-card-header">
+              <span className="budget-card-icon" aria-hidden="true">🛒</span>
+              <div><h2 id="grocery-list-heading">Grocery list</h2><p>Stock and shopping priorities</p></div>
+              <span className="grocery-priority-count">{groceryProducts.filter((product) => product.toBuy && !product.bought).length} priority to buy</span>
+            </div>
+            <form className="grocery-form" onSubmit={addGroceryProduct}>
+              <input aria-label="Product name" value={groceryName} onChange={(event) => setGroceryName(event.target.value)} placeholder="Add a product…" required disabled={!groceryStorageWritable} />
+              <button className="add-button grocery-add-button" type="submit" aria-label="Add product" disabled={!groceryStorageWritable || !groceryName.trim()}>+ Add</button>
+            </form>
+            {groceryMessage && <p className="grocery-error" role="alert">{groceryMessage}</p>}
+            {!groceryProducts.length && <p className="grocery-empty">No products yet. Add a product to get started.</p>}
+            {!!groceryProducts.length && <ul className="grocery-product-list" aria-labelledby="grocery-list-heading">
+              {priorityGroceryProducts.map((product) => (
+                <li className={`grocery-product${product.toBuy && !product.bought ? ' priority' : ''}${product.bought ? ' bought' : ''}`} key={product.id}>
+                  <label className="grocery-bought-control">
+                    <input type="checkbox" checked={product.bought} disabled={!groceryStorageWritable} onChange={() => saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, bought: !item.bought } : item))} />
+                    <span className="visually-hidden">Mark {product.name} as bought</span>
+                  </label>
+                  <div className="grocery-product-name"><strong>{product.name}</strong>{product.toBuy && !product.bought && <span className="grocery-priority-badge">To buy</span>}</div>
+                  <label className="grocery-row-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="number" min="0" step="any" value={product.stock} disabled={!groceryStorageWritable} onChange={(event) => {
+                    const stock = Number(event.target.value)
+                    if (Number.isFinite(stock) && stock >= 0) {
+                      saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, stock } : item))
+                    }
+                  }} /></label>
+                  <label className="grocery-row-field"><span className="visually-hidden">To buy</span><select aria-label={`Mark ${product.name} to buy`} value={product.toBuy ? 'yes' : 'no'} disabled={!groceryStorageWritable} onChange={(event) => saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, toBuy: event.target.value === 'yes' } : item))}><option value="yes">Buy</option><option value="no">Skip</option></select></label>
+                  <button className="grocery-delete" type="button" aria-label={`Remove ${product.name}`} disabled={!groceryStorageWritable} onClick={() => saveGroceryProducts(groceryProducts.filter((item) => item.id !== product.id))}>×</button>
+                </li>
+              ))}
+            </ul>}
+          </article>
+          <article className="budget-card nongrocery"><span className="budget-card-icon" aria-hidden="true">🧺</span><div><p className="budget-card-kicker">Everyday spending</p><h2>Not-grocery lists</h2><p>Organize planned purchases that are outside your grocery runs.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <article className="budget-card bills"><span className="budget-card-icon" aria-hidden="true">🧾</span><div><p className="budget-card-kicker">First half of the month</p><h2>Day 1–15 bills</h2><p>Keep bills due from the 1st through the 15th together.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <article className="budget-card bills"><span className="budget-card-icon" aria-hidden="true">📅</span><div><p className="budget-card-kicker">Second half of the month</p><h2>Day 16–30 bills</h2><p>Keep bills due from the 16th through the 30th together.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <article className="budget-card family"><span className="budget-card-icon" aria-hidden="true">💛</span><div><p className="budget-card-kicker">Make room for memories</p><h2>Family bonding</h2><p>Set aside room in your plan for activities with family.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <article className="budget-card allowance"><span className="budget-card-icon" aria-hidden="true">💵</span><div><p className="budget-card-kicker">Payday planning</p><h2>Cut-off allowance</h2><p>Organize allowance for each pay period or cut-off.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <article className="budget-card seldom"><span className="budget-card-icon" aria-hidden="true">✨</span><div><p className="budget-card-kicker">Occasional purchases</p><h2>Seldom buys</h2><p>Track less frequent buys before they catch you by surprise.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+        </div>
+      </section>}
     </main>
   )
 }

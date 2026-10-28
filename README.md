@@ -4,6 +4,8 @@
 
 Use **Choose folder** in the dashboard to select a folder for `budget-database.xlsx`. The workbook is read and updated in your browser, including when the dashboard is deployed to Vercel. Your browser remembers the selection. If it asks for permission again, use **Reconnect saved folder** to grant access without selecting the folder again; if that permission cannot be restored, choose the folder again. Folder access requires Chrome or Edge on a secure connection; the workbook remains on that device and is not uploaded or shared with other users.
 
+Use the **Budgets** tab to view cards for grocery and non-grocery lists, bills due on days 1–15 and 16–30, family bonding, cut-off allowance, and seldom buys. Add grocery products by name, then update each product's current stock and **To buy** status in its row. Products marked **To buy** are highlighted as priorities and shown first. Check a product when it has been bought. Grocery entries are saved in the browser.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
