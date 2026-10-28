@@ -28,13 +28,18 @@
 .budget-card h2 { margin: 0 0 9px; color: #29372f; font-size: 19px; line-height: 1.25; }
 .budget-card p:last-child { margin: 0; color: #78867c; font-size: 13px; line-height: 1.55; }
 .budget-card-arrow { position: absolute; top: 20px; right: 20px; color: #a4afa6; font-size: 17px; }
-.budget-card.grocery { display: block; grid-column: 1 / -1; min-height: 0; padding: 24px 26px; border-color: #dce5d8; box-shadow: 0 10px 28px #394b3812; }
-.budget-card.grocery::before { height: 4px; }
-.budget-card.grocery .grocery-card-header { display: flex; align-items: center; gap: 13px; padding-right: 0; }
-.budget-card.grocery .grocery-card-header > div { min-width: 0; padding: 0; }
+.budget-card.product-list-card { display: block; grid-column: 1 / -1; min-height: 0; padding: 24px 26px; border-color: #dce5d8; box-shadow: 0 10px 28px #394b3812; }
+.budget-card.product-list-card::before { height: 4px; }
+.budget-card.product-list-card .grocery-card-header { display: flex; align-items: center; gap: 13px; padding-right: 0; }
+.budget-card.product-list-card .grocery-card-header > div { min-width: 0; padding: 0; }
 .grocery-card-header h2 { margin-bottom: 3px; }
 .grocery-card-header p:last-child { margin: 0; }
-.grocery-priority-count { margin-left: auto; padding: 7px 11px; border: 1px solid #f0c8c8; border-radius: 999px; background: #fff3f2; color: #a51c26; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.product-list-total { display: flex; flex-direction: column; gap: 2px; margin-left: auto; padding: 6px 11px; border: 1px solid #dce5d8; border-radius: 9px; background: #f7faf4; white-space: nowrap; }
+.product-list-total span { color: #78867c; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.product-list-total strong { color: #33463c; font-size: 15px; }
+.product-list-total-value { display: flex; align-items: baseline; gap: 8px; }
+.product-list-total-value .estimate-only { color: #a17832; font-size: 9px; letter-spacing: .35px; }
+.grocery-priority-count { padding: 7px 11px; border: 1px solid #f0c8c8; border-radius: 999px; background: #fff3f2; color: #a51c26; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .grocery-form { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: end; gap: 10px; margin-top: 16px; }
 .grocery-form label { min-width: 0; margin: 0; }
 .grocery-form input { min-width: 0; }
@@ -42,8 +47,8 @@
 .grocery-form .grocery-add-button { width: auto; min-width: 84px; margin: 0; padding: 10px 13px; white-space: nowrap; }
 .grocery-empty { margin: 14px 0 0; color: #89958d; font-size: 13px; }
 .grocery-error { margin: 14px 0 0; color: #a51c26; font-size: 13px; }
-.grocery-product-list { display: grid; gap: 7px; margin: 16px 0 0; padding: 0; list-style: none; }
-.grocery-product { display: grid; grid-template-columns: 30px minmax(0, 1fr) 92px 76px 30px; align-items: center; gap: 12px; min-height: 62px; padding: 8px 12px; border: 1px solid #e8ede7; border-radius: 9px; background: #fbfcfa; transition: background .15s ease, border-color .15s ease; }
+.grocery-product-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 16px 0 0; padding: 0; list-style: none; }
+.grocery-product { display: grid; grid-template-columns: 30px minmax(0, 1fr) 78px 92px 76px 30px; align-items: center; gap: 10px; min-height: 62px; padding: 8px 12px; border: 1px solid #e8ede7; border-radius: 9px; background: #fbfcfa; transition: background .15s ease, border-color .15s ease; }
 .grocery-product.priority { border-color: #f0c8c8; border-left: 3px solid #bd202b; background: #fff8f7; }
 .grocery-bought-control { display: grid; width: 30px; height: 34px; place-items: center; margin: 0; cursor: pointer; }
 .grocery-bought-control input[type='checkbox'] { width: 20px; height: 20px; margin: 0; accent-color: #bd202b; cursor: pointer; }
@@ -57,10 +62,38 @@
 .grocery-product.bought .grocery-product-name span { color: #9aa49c; }
 .grocery-priority-badge { padding: 4px 8px; border-radius: 999px; background: #bd202b; color: #fff !important; font-size: 10px !important; font-weight: 800; white-space: nowrap; text-decoration: none !important; }
 .grocery-row-field { display: block; min-width: 0; margin: 0; }
+.grocery-price-field { display: flex; align-items: center; gap: 4px; color: #78867c; font-size: 13px; font-weight: 700; }
+.grocery-price-field input { flex: 1; width: 100%; }
 .grocery-row-field input, .grocery-row-field select { min-width: 0; height: 36px; margin: 0; padding: 6px 8px; font-size: 13px; }
 .grocery-delete { flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: #a4afa6; font-size: 21px; cursor: pointer; }
 .grocery-delete:hover:not(:disabled) { background: #faecec; color: #a51c26; }
 .grocery-delete:disabled { cursor: not-allowed; opacity: .5; }
+.budget-card.bills-editor { display: block; grid-column: 1 / -1; min-height: 0; padding: 22px 24px; }
+.budget-card.bills-editor::before { height: 4px; }
+.bill-card-header { display: flex; align-items: center; gap: 13px; }
+.bill-card-header > div { min-width: 0; }
+.bill-card-header .budget-card-kicker { margin-bottom: 4px; }
+.bill-card-header h2 { margin: 0; }
+.bill-total { display: flex; align-items: baseline; gap: 9px; margin-left: auto; padding: 8px 12px; border: 1px solid #f0d7d4; border-radius: 9px; background: #fff8f6; white-space: nowrap; }
+.bill-total span { color: #8c7774; font-size: 12px; font-weight: 650; }
+.bill-total strong { color: #a51c26; font-size: 18px; }
+.bill-form { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 10px; margin-top: 16px; }
+.bill-form input { min-width: 0; margin-top: 0; }
+.bill-form button { width: auto; min-width: 110px; margin: 0; padding: 10px 13px; white-space: nowrap; }
+.bill-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.bill-item { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(112px, 140px) 28px; align-items: center; gap: 9px; min-height: 54px; padding: 7px 10px; border: 1px solid #e8ede7; border-radius: 9px; background: #fbfcfa; }
+.bill-paid-control { display: grid; width: 24px; height: 30px; place-items: center; margin: 0; cursor: pointer; }
+.bill-paid-control input { width: 18px; height: 18px; margin: 0; accent-color: #bd202b; }
+.bill-name { min-width: 0; overflow-wrap: anywhere; color: #344139; font-size: 14px; }
+.bill-amount-field { display: flex; align-items: center; gap: 5px; margin: 0; color: #78867c; font-size: 13px; font-weight: 700; }
+.bill-amount-field input { min-width: 0; height: 34px; margin: 0; padding: 5px 7px; font-size: 14px; }
+.bill-item.paid .bill-name { color: #89958d; text-decoration: line-through; }
+:root[data-theme='dark'] .bill-total { background: #302526; border-color: #54393b; }
+:root[data-theme='dark'] .bill-total span { color: #c8bcba; }
+:root[data-theme='dark'] .bill-total strong { color: #ffabb0; }
+:root[data-theme='dark'] .bill-item { background: #252121; border-color: #393333; }
+:root[data-theme='dark'] .bill-name { color: #eee8e6; }
+:root[data-theme='dark'] .bill-item.paid .bill-name { color: #a99f9c; }
 
 :root[data-theme='dark'] .main-tabs { border-color: #393333; }
 :root[data-theme='dark'] .main-tab { color: #b0a5a2; }
@@ -78,6 +111,10 @@
 :root[data-theme='dark'] .grocery-empty { color: #b0a5a2; }
 :root[data-theme='dark'] .grocery-error { color: #ff9ba2; }
 :root[data-theme='dark'] .grocery-priority-count { background: #392729; border-color: #704044; color: #ffabb0; }
+:root[data-theme='dark'] .product-list-total { background: #242a24; border-color: #41483d; }
+:root[data-theme='dark'] .product-list-total span { color: #b0a5a2; }
+:root[data-theme='dark'] .product-list-total strong { color: #d9f36a; }
+:root[data-theme='dark'] .product-list-total-value .estimate-only { color: #e6c27a; }
 :root[data-theme='dark'] .grocery-product { background: #252121; }
 :root[data-theme='dark'] .grocery-product.priority { background: #302324; border-color: #704044; border-left-color: #e3424d; }
 :root[data-theme='dark'] .grocery-product.bought { background: #211f1f; border-color: #393333; }
@@ -86,23 +123,47 @@
 
 @media (max-width: 900px) {
   .budget-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grocery-product { grid-template-columns: 28px minmax(0, 1fr) 78px 68px 28px; gap: 8px; }
+  .grocery-product { grid-template-columns: 28px minmax(0, 1fr) 68px 80px 68px 28px; gap: 7px; }
+  .bill-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .budgets-page { padding-top: 28px; }
   .budgets-heading { align-items: flex-start; flex-direction: column; }
   .budget-cards { grid-template-columns: 1fr; }
   .budget-card { min-height: 150px; }
-  .budget-card.grocery { min-height: 0; padding: 18px 14px; }
-  .budget-card.grocery .grocery-card-header { flex-wrap: wrap; }
+  .budget-card.product-list-card { min-height: 0; padding: 18px 14px; }
+  .budget-card.product-list-card .grocery-card-header { flex-wrap: wrap; }
+  .product-list-total { margin-left: auto; }
+  .budget-card.bills-editor { padding: 18px 14px; }
+  .bill-card-header { gap: 9px; }
+  .bill-card-header .budget-card-icon { flex-basis: 38px; width: 38px; height: 38px; }
+  .bill-total { gap: 5px; padding: 7px 9px; }
+  .bill-total span { font-size: 11px; }
+  .bill-total strong { font-size: 16px; }
+  .bill-form { grid-template-columns: minmax(0, 1fr) auto; }
+  .bill-form button { min-width: 0; padding: 10px; }
+  .bill-item { grid-template-columns: 24px minmax(0, 1fr) minmax(94px, 120px) 24px; gap: 6px; padding: 7px; }
+  .bill-name { font-size: 13px; }
+  .bill-amount-field input { font-size: 16px; }
   .grocery-priority-count { margin-left: auto; }
   .grocery-form { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
   .grocery-form .grocery-add-button { min-width: 0; padding: 10px 11px; }
-  .grocery-product { grid-template-columns: 20px minmax(0, 1fr) 52px 50px 20px; gap: 4px; padding: 7px 6px; }
-  .grocery-bought-control { width: 20px; }
-  .grocery-bought-control input[type='checkbox'] { width: 18px; height: 18px; }
-  .grocery-delete { width: 20px; }
-  .grocery-row-field input, .grocery-row-field select { padding: 5px; font-size: 12px; }
+  .grocery-product-list { grid-template-columns: 1fr; }
+  .grocery-product {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 24px;
+    grid-template-areas:
+      "check name name delete ."
+      ". stock price buy .";
+    gap: 5px 8px;
+    padding: 8px;
+  }
+  .grocery-bought-control { grid-area: check; }
+  .grocery-product-name { grid-area: name; }
+  .grocery-delete { grid-area: delete; }
+  .grocery-stock-field { grid-area: stock; }
+  .grocery-price-field { grid-area: price; }
+  .grocery-buy-field { grid-area: buy; }
+  .grocery-row-field input, .grocery-row-field select { padding: 5px 7px; font-size: 14px; }
   .grocery-product-name { flex-wrap: wrap; gap: 5px; }
   .grocery-product-name strong { font-size: 14px; }
   .grocery-priority-badge { font-size: 9px !important; }
@@ -596,4 +657,94 @@ body { overflow-x: hidden; }
 	/* Style .history-title-field input, .export-button using the declarations on this line. */
 	.history-title-field input, .export-button { min-height: 42px; }
 /* Set the remaining declarations for this CSS rule. */
+}
+
+/* Keep the dashboard comfortable to read and operate on touch screens. */
+@media (max-width: 760px) {
+	.app-shell .topbar strong { font-size: clamp(17px, 4.5vw, 20px); }
+	.app-shell .topbar span,
+	.app-shell .muted,
+	.app-shell .month-chip,
+	.app-shell .filter-button { font-size: clamp(14px, 3.8vw, 16px); }
+	.app-shell .welcome-row h1 { font-size: clamp(32px, 8vw, 42px); }
+	.app-shell .section-heading h2 { font-size: clamp(19px, 5vw, 23px); }
+	.app-shell .stat-card strong { font-size: clamp(25px, 6vw, 32px); }
+	.app-shell .transaction-info strong,
+	.app-shell .amount { font-size: clamp(15px, 4vw, 17px); }
+	.app-shell .transaction-info span { font-size: clamp(13px, 3.5vw, 15px); }
+	.app-shell input,
+	.app-shell select { font-size: 16px; }
+	.budgets-page { padding-top: 26px; }
+	.budgets-heading { margin-bottom: 18px; }
+	.budget-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+	.budget-card { min-height: 148px; padding: 18px; }
+	.budget-card h2 { font-size: clamp(16px, 4.2vw, 19px); }
+	.budget-card p:last-child { font-size: clamp(13px, 3.5vw, 15px); }
+	.budget-card.product-list-card { padding: 20px; }
+	.grocery-product { grid-template-columns: 24px minmax(0, 1fr) 64px 72px 64px 24px; gap: 6px; padding: 8px; }
+	.grocery-product-name strong { font-size: clamp(14px, 3.8vw, 16px); }
+	.grocery-row-field input,
+	.grocery-row-field select { font-size: 15px; }
+}
+
+@media (max-width: 520px) {
+	.app-shell { width: calc(100% - 24px); padding-bottom: 36px; }
+	.topbar { gap: 8px; }
+	.text-size-controls { gap: 0; }
+	.text-size-controls button { min-width: 30px; }
+	.text-size-controls span { min-width: 34px; }
+	.main-tabs { padding-top: 12px; }
+	.main-tab { padding: 0 12px 11px; }
+	.budgets-heading { gap: 12px; }
+	.budgets-total-label { padding: 7px 10px; font-size: 12px; }
+	.budget-cards { grid-template-columns: 1fr; gap: 10px; }
+	.budget-card { min-height: 0; padding: 16px; }
+	.budget-card.product-list-card { padding: 16px; }
+	.budget-card.product-list-card .grocery-card-header { gap: 10px; }
+	.budget-card.product-list-card .budget-card-icon { flex-basis: 38px; width: 38px; height: 38px; font-size: 19px; }
+	.grocery-card-header h2 { font-size: 19px; }
+	.grocery-priority-count { padding: 6px 9px; font-size: 11px; }
+	.product-list-total { padding: 5px 8px; }
+	.product-list-total span { font-size: 9px; }
+	.product-list-total strong { font-size: 13px; }
+	.grocery-form { margin-top: 12px; }
+	.grocery-product-list { margin-top: 12px; }
+	.grocery-product-list { grid-template-columns: 1fr; }
+	.grocery-product {
+		grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 24px;
+		grid-template-areas:
+			"check name name delete ."
+			". stock price buy .";
+		gap: 5px 8px;
+		padding: 10px;
+	}
+	.grocery-bought-control { grid-area: check; }
+	.grocery-product-name { grid-area: name; }
+	.grocery-delete { grid-area: delete; }
+	.grocery-stock-field { grid-area: stock; }
+	.grocery-buy-field { grid-area: buy; }
+	.grocery-row-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #78867c; font-size: 12px; }
+	.grocery-row-field .visually-hidden { position: static; width: auto; height: auto; padding: 0; overflow: visible; clip: auto; white-space: normal; border: 0; }
+	.grocery-row-field input,
+	.grocery-row-field select { width: min(150px, 55%); height: 34px; font-size: 16px; }
+	.grocery-product-name strong { font-size: 15px; }
+	.grocery-priority-badge { font-size: 10px !important; }
+}
+
+@media (max-width: 380px) {
+	.grocery-product {
+		grid-template-columns: 24px minmax(0, 1fr) 24px;
+		grid-template-areas:
+			"check name delete"
+			". stock ."
+			". price ."
+			". buy .";
+		gap: 5px 8px;
+	}
+	.grocery-bought-control { grid-area: check; }
+	.grocery-product-name { grid-area: name; }
+	.grocery-stock-field { grid-area: stock; }
+	.grocery-price-field { grid-area: price; }
+	.grocery-buy-field { grid-area: buy; }
+	.grocery-delete { grid-area: delete; }
 }

@@ -1,7 +1,7 @@
 // Import React state and derived-state hooks.
 import { useEffect, useMemo, useState } from 'react'
 // Import the form event type without adding it to the runtime bundle.
-import type { FormEvent } from 'react'
+import type { Dispatch, FormEvent, SetStateAction } from 'react'
 // Open the callback or block that contains the following operation.
 import {
   // Perform this step in the dashboard calculation or state update.
@@ -53,6 +53,7 @@ type GroceryProduct = {
   id: string
   name: string
   stock: number
+  price: number
   toBuy: boolean
   bought: boolean
 }
@@ -63,9 +64,9 @@ type GroceryStorageState = {
   message: string
 }
 
-function readGroceryStorage(): GroceryStorageState {
+function readProductStorage(storageKey: string, listName: string): GroceryStorageState {
   try {
-    const savedProducts = window.localStorage.getItem('budget-tracker-grocery-products')
+    const savedProducts = window.localStorage.getItem(storageKey)
     if (!savedProducts) return { products: [], writable: true, message: '' }
     const parsed: unknown = JSON.parse(savedProducts)
     if (!Array.isArray(parsed) || !parsed.every((product) => (
@@ -74,16 +75,22 @@ function readGroceryStorage(): GroceryStorageState {
       && typeof product.stock === 'number'
       && Number.isFinite(product.stock)
       && product.stock >= 0
+      && (product.price === undefined || (
+        typeof product.price === 'number'
+        && Number.isFinite(product.price)
+        && product.price >= 0
+      ))
       && typeof product.toBuy === 'boolean'
       && (product.bought === undefined || typeof product.bought === 'boolean')
     ))) {
-      throw new Error('Saved grocery list has an invalid format.')
+      throw new Error(`Saved ${listName} list has an invalid format.`)
     }
     return {
       products: parsed.map((product) => ({
         id: product.id,
         name: product.name,
         stock: product.stock,
+        price: product.price ?? 0,
         toBuy: product.toBuy,
         bought: product.bought ?? false,
       })) as GroceryProduct[],
@@ -94,9 +101,188 @@ function readGroceryStorage(): GroceryStorageState {
     return {
       products: [],
       writable: false,
-      message: error instanceof Error ? error.message : 'Unable to load saved grocery products.',
+      message: error instanceof Error ? error.message : `Unable to load saved ${listName} products.`,
     }
   }
+}
+
+type ProductListCardProps = {
+  id: string
+  title: string
+  description: string
+  icon: string
+  products: GroceryProduct[]
+  writable: boolean
+  message: string
+  onSave: (products: GroceryProduct[]) => boolean
+  onAdd: (name: string) => boolean
+}
+
+function ProductListCard({ id, title, description, icon, products, writable, message, onSave, onAdd }: ProductListCardProps) {
+  const [name, setName] = useState('')
+  const priorityProducts = [...products].sort(
+    (first, second) => Number(first.bought) - Number(second.bought)
+      || Number(second.toBuy) - Number(first.toBuy),
+  )
+  const isGroceryList = id === 'grocery-list'
+  const total = products.reduce(
+    (sum, product) => sum + (isGroceryList && (!product.toBuy || product.bought) ? 0 : product.stock * product.price),
+    0,
+  )
+
+  function addProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedName = name.trim()
+    if (trimmedName && onAdd(trimmedName)) setName('')
+  }
+
+  return (
+    <article className="budget-card product-list-card">
+      <div className="grocery-card-header">
+        <span className="budget-card-icon" aria-hidden="true">{icon}</span>
+        <div><h2 id={`${id}-heading`}>{title}</h2><p>{description}</p></div>
+        <div className="product-list-total"><span>{isGroceryList ? 'To buy total' : 'Stock value'}</span><div className="product-list-total-value"><strong>{currency.format(total)}</strong><span className="estimate-only">ESTIMATE ONLY</span></div></div>
+        <span className="grocery-priority-count">{products.filter((product) => product.toBuy && !product.bought).length} priority to buy</span>
+      </div>
+      <form className="grocery-form" onSubmit={addProduct}>
+        <input aria-label={`${title} product name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="Add a product…" required disabled={!writable} />
+        <button className="add-button grocery-add-button" type="submit" aria-label={`Add ${title} product`} disabled={!writable || !name.trim()}>+ Add</button>
+      </form>
+      {message && <p className="grocery-error" role="alert">{message}</p>}
+      {!products.length && <p className="grocery-empty">No products yet. Add a product to get started.</p>}
+      {!!products.length && <ul className="grocery-product-list" aria-labelledby={`${id}-heading`}>
+        {priorityProducts.map((product) => (
+          <li className={`grocery-product${product.toBuy && !product.bought ? ' priority' : ''}${product.bought ? ' bought' : ''}`} key={product.id}>
+            <label className="grocery-bought-control">
+              <input type="checkbox" checked={product.bought} disabled={!writable} onChange={() => onSave(products.map((item) => item.id === product.id ? { ...item, bought: !item.bought } : item))} />
+              <span className="visually-hidden">Mark {product.name} as bought</span>
+            </label>
+            <div className="grocery-product-name"><strong>{product.name}</strong>{product.toBuy && !product.bought && <span className="grocery-priority-badge">To buy</span>}</div>
+            <label className="grocery-row-field grocery-stock-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="number" min="0" step="any" value={product.stock} disabled={!writable} onChange={(event) => {
+              const stock = Number(event.target.value)
+              if (Number.isFinite(stock) && stock >= 0) {
+                onSave(products.map((item) => item.id === product.id ? { ...item, stock } : item))
+              }
+            }} /></label>
+            <label className="grocery-row-field grocery-price-field"><span className="visually-hidden">Unit price</span><span className="currency-prefix" aria-hidden="true">₱</span><input aria-label={`Unit price for ${product.name}`} type="number" min="0" step="0.01" value={product.price.toFixed(2)} disabled={!writable} onChange={(event) => {
+              const price = Number(event.target.value)
+              if (Number.isFinite(price) && price >= 0) {
+                onSave(products.map((item) => item.id === product.id ? { ...item, price } : item))
+              }
+            }} /></label>
+            <label className="grocery-row-field grocery-buy-field"><span className="visually-hidden">To buy</span><select aria-label={`Mark ${product.name} to buy`} value={product.toBuy ? 'yes' : 'no'} disabled={!writable} onChange={(event) => onSave(products.map((item) => item.id === product.id ? { ...item, toBuy: event.target.value === 'yes' } : item))}><option value="yes">Buy</option><option value="no">Skip</option></select></label>
+            <button className="grocery-delete" type="button" aria-label={`Remove ${product.name}`} disabled={!writable} onClick={() => onSave(products.filter((item) => item.id !== product.id))}>×</button>
+          </li>
+        ))}
+      </ul>}
+    </article>
+  )
+}
+
+type BillItem = {
+  id: string
+  name: string
+  amount: number
+  paid: boolean
+}
+
+type BillStorageState = {
+  bills: BillItem[]
+  writable: boolean
+  message: string
+}
+
+function readBillStorage(storageKey: string, period: string): BillStorageState {
+  try {
+    const savedBills = window.localStorage.getItem(storageKey)
+    if (!savedBills) return { bills: [], writable: true, message: '' }
+    const parsed: unknown = JSON.parse(savedBills)
+    if (!Array.isArray(parsed) || !parsed.every((bill) => (
+      typeof bill.id === 'string'
+      && typeof bill.name === 'string'
+      && typeof bill.amount === 'number'
+      && Number.isFinite(bill.amount)
+      && bill.amount >= 0
+      && (bill.paid === undefined || typeof bill.paid === 'boolean')
+    ))) {
+      throw new Error(`Saved ${period} bills have an invalid format.`)
+    }
+    return {
+      bills: parsed.map((bill) => ({ ...bill, paid: bill.paid ?? false })) as BillItem[],
+      writable: true,
+      message: '',
+    }
+  } catch (error) {
+    return {
+      bills: [],
+      writable: false,
+      message: error instanceof Error ? error.message : `Unable to load ${period} bills.`,
+    }
+  }
+}
+
+type BillsCardProps = {
+  period: 'Day 1–15' | 'Day 16–30'
+  bills: BillItem[]
+  writable: boolean
+  message: string
+  onSave: (bills: BillItem[]) => boolean
+}
+
+function BillsCard({ period, bills, writable, message, onSave }: BillsCardProps) {
+  const [name, setName] = useState('')
+  const total = bills.reduce((sum, bill) => sum + bill.amount, 0)
+
+  function addBill(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName || !writable) return
+    const saved = onSave([...bills, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: trimmedName,
+      amount: 0,
+      paid: false,
+    }])
+    if (saved) setName('')
+  }
+
+  return (
+    <article className="budget-card bills bills-editor">
+      <div className="bill-card-header">
+        <span className="budget-card-icon" aria-hidden="true">🧾</span>
+        <div><p className="budget-card-kicker">{period === 'Day 1–15' ? 'First half of the month' : 'Second half of the month'}</p><h2 id={`${period === 'Day 1–15' ? 'day-1-15' : 'day-16-30'}-heading`}>{period} bills</h2></div>
+        <div className="bill-total"><span>Total bills</span><strong>{currency.format(total)}</strong></div>
+      </div>
+      <form className="bill-form" onSubmit={addBill}>
+        <input aria-label={`${period} bill name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="Add a bill…" required disabled={!writable} />
+        <button className="add-button" type="submit" disabled={!writable || !name.trim()}>+ Add bill</button>
+      </form>
+      {message && <p className="grocery-error" role="alert">{message}</p>}
+      {!bills.length && <p className="grocery-empty">No bills yet. Add a bill to get started.</p>}
+      {!!bills.length && <ul className="bill-list" aria-labelledby={`${period === 'Day 1–15' ? 'day-1-15' : 'day-16-30'}-heading`}>
+        {bills.map((bill) => (
+          <li className={bill.paid ? 'bill-item paid' : 'bill-item'} key={bill.id}>
+            <label className="bill-paid-control">
+              <input type="checkbox" checked={bill.paid} disabled={!writable} onChange={() => onSave(bills.map((item) => item.id === bill.id ? { ...item, paid: !item.paid } : item))} />
+              <span className="visually-hidden">Mark {bill.name} as paid</span>
+            </label>
+            <strong className="bill-name">{bill.name}</strong>
+            <label className="bill-amount-field">
+              <span className="visually-hidden">Amount for {bill.name}</span>
+              <span aria-hidden="true">₱</span>
+              <input aria-label={`Amount for ${bill.name}`} type="number" min="0" step="0.01" value={bill.amount.toFixed(2)} disabled={!writable} onChange={(event) => {
+                const amount = Number(event.target.value)
+                if (Number.isFinite(amount) && amount >= 0) {
+                  onSave(bills.map((item) => item.id === bill.id ? { ...item, amount } : item))
+                }
+              }} />
+            </label>
+            <button className="grocery-delete" type="button" aria-label={`Remove ${bill.name}`} disabled={!writable} onClick={() => onSave(bills.filter((item) => item.id !== bill.id))}>×</button>
+          </li>
+        ))}
+      </ul>}
+    </article>
+  )
 }
 
 function readTodoStorage(): TodoStorageState {
@@ -188,9 +374,14 @@ function App() {
   const [todoState, setTodoState] = useState(readTodoStorage)
   const { items: todoItems, writable: todoStorageWritable, message: todoMessage } = todoState
   const [todoDraft, setTodoDraft] = useState('')
-  const [groceryState, setGroceryState] = useState(readGroceryStorage)
+  const [groceryState, setGroceryState] = useState(() => readProductStorage('budget-tracker-grocery-products', 'grocery'))
   const { products: groceryProducts, writable: groceryStorageWritable, message: groceryMessage } = groceryState
-  const [groceryName, setGroceryName] = useState('')
+  const [nonGroceryState, setNonGroceryState] = useState(() => readProductStorage('budget-tracker-nongrocery-products', 'non-grocery'))
+  const { products: nonGroceryProducts, writable: nonGroceryStorageWritable, message: nonGroceryMessage } = nonGroceryState
+  const [firstBillState, setFirstBillState] = useState(() => readBillStorage('budget-tracker-day-1-15-bills', 'Day 1–15'))
+  const { bills: firstBills, writable: firstBillsWritable, message: firstBillsMessage } = firstBillState
+  const [secondBillState, setSecondBillState] = useState(() => readBillStorage('budget-tracker-day-16-30-bills', 'Day 16–30'))
+  const { bills: secondBills, writable: secondBillsWritable, message: secondBillsMessage } = secondBillState
   // Track which saved history groups are expanded or collapsed.
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   // Show the current folder used for the Excel workbook.
@@ -643,25 +834,47 @@ function App() {
     }
   }
 
-  function addGroceryProduct(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const name = groceryName.trim()
-    if (!name || !groceryStorageWritable) return
-    const saved = saveGroceryProducts([...groceryProducts, {
+  function saveNonGroceryProducts(products: GroceryProduct[]) {
+    try {
+      window.localStorage.setItem('budget-tracker-nongrocery-products', JSON.stringify(products))
+      setNonGroceryState((current) => ({ ...current, products }))
+      return true
+    } catch (error) {
+      setNonGroceryState((current) => ({
+        ...current,
+        writable: false,
+        message: error instanceof Error ? error.message : 'Unable to save non-grocery products.',
+      }))
+      return false
+    }
+  }
+
+  function saveBills(nextBills: BillItem[], storageKey: string, setState: Dispatch<SetStateAction<BillStorageState>>, period: string) {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(nextBills))
+      setState((current) => ({ ...current, bills: nextBills }))
+      return true
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        writable: false,
+        message: error instanceof Error ? error.message : `Unable to save ${period} bills.`,
+      }))
+      return false
+    }
+  }
+
+  function addProduct(products: GroceryProduct[], saveProducts: (products: GroceryProduct[]) => boolean, writable: boolean, name: string) {
+    if (!name || !writable) return false
+    return saveProducts([...products, {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
       stock: 0,
+      price: 0,
       toBuy: true,
       bought: false,
     }])
-    if (!saved) return
-    setGroceryName('')
   }
-
-  const priorityGroceryProducts = [...groceryProducts].sort(
-    (first, second) => Number(first.bought) - Number(second.bought)
-      || Number(second.toBuy) - Number(first.toBuy),
-  )
 
   // Return the dashboard layout and its interactive controls.
   return (
@@ -761,41 +974,30 @@ function App() {
           <span className="budgets-total-label">7 budget categories</span>
         </div>
         <div className="budget-cards">
-          <article className="budget-card grocery">
-            <div className="grocery-card-header">
-              <span className="budget-card-icon" aria-hidden="true">🛒</span>
-              <div><h2 id="grocery-list-heading">Grocery list</h2><p>Stock and shopping priorities</p></div>
-              <span className="grocery-priority-count">{groceryProducts.filter((product) => product.toBuy && !product.bought).length} priority to buy</span>
-            </div>
-            <form className="grocery-form" onSubmit={addGroceryProduct}>
-              <input aria-label="Product name" value={groceryName} onChange={(event) => setGroceryName(event.target.value)} placeholder="Add a product…" required disabled={!groceryStorageWritable} />
-              <button className="add-button grocery-add-button" type="submit" aria-label="Add product" disabled={!groceryStorageWritable || !groceryName.trim()}>+ Add</button>
-            </form>
-            {groceryMessage && <p className="grocery-error" role="alert">{groceryMessage}</p>}
-            {!groceryProducts.length && <p className="grocery-empty">No products yet. Add a product to get started.</p>}
-            {!!groceryProducts.length && <ul className="grocery-product-list" aria-labelledby="grocery-list-heading">
-              {priorityGroceryProducts.map((product) => (
-                <li className={`grocery-product${product.toBuy && !product.bought ? ' priority' : ''}${product.bought ? ' bought' : ''}`} key={product.id}>
-                  <label className="grocery-bought-control">
-                    <input type="checkbox" checked={product.bought} disabled={!groceryStorageWritable} onChange={() => saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, bought: !item.bought } : item))} />
-                    <span className="visually-hidden">Mark {product.name} as bought</span>
-                  </label>
-                  <div className="grocery-product-name"><strong>{product.name}</strong>{product.toBuy && !product.bought && <span className="grocery-priority-badge">To buy</span>}</div>
-                  <label className="grocery-row-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="number" min="0" step="any" value={product.stock} disabled={!groceryStorageWritable} onChange={(event) => {
-                    const stock = Number(event.target.value)
-                    if (Number.isFinite(stock) && stock >= 0) {
-                      saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, stock } : item))
-                    }
-                  }} /></label>
-                  <label className="grocery-row-field"><span className="visually-hidden">To buy</span><select aria-label={`Mark ${product.name} to buy`} value={product.toBuy ? 'yes' : 'no'} disabled={!groceryStorageWritable} onChange={(event) => saveGroceryProducts(groceryProducts.map((item) => item.id === product.id ? { ...item, toBuy: event.target.value === 'yes' } : item))}><option value="yes">Buy</option><option value="no">Skip</option></select></label>
-                  <button className="grocery-delete" type="button" aria-label={`Remove ${product.name}`} disabled={!groceryStorageWritable} onClick={() => saveGroceryProducts(groceryProducts.filter((item) => item.id !== product.id))}>×</button>
-                </li>
-              ))}
-            </ul>}
-          </article>
-          <article className="budget-card nongrocery"><span className="budget-card-icon" aria-hidden="true">🧺</span><div><p className="budget-card-kicker">Everyday spending</p><h2>Not-grocery lists</h2><p>Organize planned purchases that are outside your grocery runs.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
-          <article className="budget-card bills"><span className="budget-card-icon" aria-hidden="true">🧾</span><div><p className="budget-card-kicker">First half of the month</p><h2>Day 1–15 bills</h2><p>Keep bills due from the 1st through the 15th together.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
-          <article className="budget-card bills"><span className="budget-card-icon" aria-hidden="true">📅</span><div><p className="budget-card-kicker">Second half of the month</p><h2>Day 16–30 bills</h2><p>Keep bills due from the 16th through the 30th together.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <ProductListCard
+            id="grocery-list"
+            title="Grocery list"
+            description="Stock and shopping priorities"
+            icon="🛒"
+            products={groceryProducts}
+            writable={groceryStorageWritable}
+            message={groceryMessage}
+            onSave={saveGroceryProducts}
+            onAdd={(name) => addProduct(groceryProducts, saveGroceryProducts, groceryStorageWritable, name)}
+          />
+          <ProductListCard
+            id="non-grocery-list"
+            title="Not-grocery list"
+            description="Everyday spending"
+            icon="🧺"
+            products={nonGroceryProducts}
+            writable={nonGroceryStorageWritable}
+            message={nonGroceryMessage}
+            onSave={saveNonGroceryProducts}
+            onAdd={(name) => addProduct(nonGroceryProducts, saveNonGroceryProducts, nonGroceryStorageWritable, name)}
+          />
+          <BillsCard period="Day 1–15" bills={firstBills} writable={firstBillsWritable} message={firstBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-1-15-bills', setFirstBillState, 'Day 1–15')} />
+          <BillsCard period="Day 16–30" bills={secondBills} writable={secondBillsWritable} message={secondBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-16-30-bills', setSecondBillState, 'Day 16–30')} />
           <article className="budget-card family"><span className="budget-card-icon" aria-hidden="true">💛</span><div><p className="budget-card-kicker">Make room for memories</p><h2>Family bonding</h2><p>Set aside room in your plan for activities with family.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
           <article className="budget-card allowance"><span className="budget-card-icon" aria-hidden="true">💵</span><div><p className="budget-card-kicker">Payday planning</p><h2>Cut-off allowance</h2><p>Organize allowance for each pay period or cut-off.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
           <article className="budget-card seldom"><span className="budget-card-icon" aria-hidden="true">✨</span><div><p className="budget-card-kicker">Occasional purchases</p><h2>Seldom buys</h2><p>Track less frequent buys before they catch you by surprise.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>

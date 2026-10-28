@@ -4,4 +4,4 @@
 
 /* Apply predictable sizing and inherited form typography everywhere. */
 /* Style *, body, button, input, select using the declarations on this line. */
-* { box-sizing: border-box; } body { margin: 0; min-width: 320px; } button, input, select { font: inherit; }
+* { box-sizing: border-box; } body { margin: 0; min-width: 0; } button, input, select { font: inherit; }
