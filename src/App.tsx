@@ -1,5 +1,5 @@
 // Import React state and derived-state hooks.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 // Import the form event type without adding it to the runtime bundle.
 import type { Dispatch, FormEvent, SetStateAction } from 'react'
 // Open the callback or block that contains the following operation.
@@ -19,7 +19,7 @@ import {
 // Perform this step in the dashboard calculation or state update.
 } from './excelDatabase'
 // Perform this step in the dashboard calculation or state update.
-import type { BrowserDirectoryHandle, Transaction, TransactionType } from './excelDatabase'
+import type { BillItem, BrowserDirectoryHandle, BudgetListItem, GroceryProduct, Transaction, TransactionType, WorkbookData } from './excelDatabase'
 // Load the dashboard stylesheet.
 import './App.css'
 
@@ -49,14 +49,66 @@ type TodoStorageState = {
   message: string
 }
 
-type GroceryProduct = {
+type BudgetItemsCardProps = {
   id: string
-  name: string
-  stock: number
-  price: number
-  toBuy: boolean
-  bought: boolean
+  title: string
+  description: string
+  icon: string
+  items: BudgetListItem[]
+  writable: boolean
+  onChange: (items: BudgetListItem[]) => void
 }
+
+function BudgetItemsCard({ id, title, description, icon, items, writable, onChange }: BudgetItemsCardProps) {
+  const [draft, setDraft] = useState('')
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({})
+  const total = items.reduce((sum, item) => sum + item.amount, 0)
+
+  function addItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const name = draft.trim()
+    if (!name) return
+    onChange([...items, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name, amount: 0 }])
+    setDraft('')
+  }
+
+  function saveAmount(itemId: string) {
+    const rawValue = amountDrafts[itemId]
+    if (rawValue === undefined) return
+    const amount = Number(rawValue)
+    if (rawValue.trim() && Number.isFinite(amount) && amount >= 0) {
+      onChange(items.map((item) => item.id === itemId ? { ...item, amount } : item))
+    }
+    setAmountDrafts((current) => {
+      const { [itemId]: _draft, ...remaining } = current
+      return remaining
+    })
+  }
+
+  return (
+    <article className={`budget-card budget-list-card ${id}`} aria-labelledby={`${id}-heading`}>
+      <div className="budget-list-card-heading">
+        <span className="budget-card-icon" aria-hidden="true">{icon}</span>
+        <div><p className="budget-card-kicker">{description}</p><h2 id={`${id}-heading`}>{title}</h2></div>
+        <strong className="budget-items-total">{currency.format(total)}</strong>
+      </div>
+      <form className="budget-item-form" onSubmit={addItem}>
+        <input aria-label={`Add item to ${title}`} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add an item…" required disabled={!writable} />
+        <button className="add-button" type="submit" disabled={!writable || !draft.trim()}>Add</button>
+      </form>
+      {!items.length && <p className="budget-items-empty">No items yet.</p>}
+      {!!items.length && <ul className="budget-items-list">{items.map((item) => (
+        <li key={item.id}>
+          <span>{item.name}</span>
+          <label className="budget-item-amount"><span className="visually-hidden">Amount for {item.name}</span><span aria-hidden="true">₱</span><input aria-label={`Amount for ${item.name}`} type="text" inputMode="decimal" value={amountDrafts[item.id] ?? item.amount.toFixed(2)} disabled={!writable} onChange={(event) => setAmountDrafts((current) => ({ ...current, [item.id]: event.target.value }))} onBlur={() => saveAmount(item.id)} /></label>
+          <button type="button" aria-label={`Remove ${item.name} from ${title}`} disabled={!writable} onClick={() => onChange(items.filter((current) => current.id !== item.id))}>×</button>
+        </li>
+      ))}</ul>}
+    </article>
+  )
+}
+
+const groceryStores = ['Gleemart', 'Walter', 'Dali', 'Other']
 
 type GroceryStorageState = {
   products: GroceryProduct[]
@@ -64,46 +116,8 @@ type GroceryStorageState = {
   message: string
 }
 
-function readProductStorage(storageKey: string, listName: string): GroceryStorageState {
-  try {
-    const savedProducts = window.localStorage.getItem(storageKey)
-    if (!savedProducts) return { products: [], writable: true, message: '' }
-    const parsed: unknown = JSON.parse(savedProducts)
-    if (!Array.isArray(parsed) || !parsed.every((product) => (
-      typeof product.id === 'string'
-      && typeof product.name === 'string'
-      && typeof product.stock === 'number'
-      && Number.isFinite(product.stock)
-      && product.stock >= 0
-      && (product.price === undefined || (
-        typeof product.price === 'number'
-        && Number.isFinite(product.price)
-        && product.price >= 0
-      ))
-      && typeof product.toBuy === 'boolean'
-      && (product.bought === undefined || typeof product.bought === 'boolean')
-    ))) {
-      throw new Error(`Saved ${listName} list has an invalid format.`)
-    }
-    return {
-      products: parsed.map((product) => ({
-        id: product.id,
-        name: product.name,
-        stock: product.stock,
-        price: product.price ?? 0,
-        toBuy: product.toBuy,
-        bought: product.bought ?? false,
-      })) as GroceryProduct[],
-      writable: true,
-      message: '',
-    }
-  } catch (error) {
-    return {
-      products: [],
-      writable: false,
-      message: error instanceof Error ? error.message : `Unable to load saved ${listName} products.`,
-    }
-  }
+function readProductStorage(_storageKey: string, _listName: string): GroceryStorageState {
+  return { products: [], writable: true, message: '' }
 }
 
 type ProductListCardProps = {
@@ -120,11 +134,25 @@ type ProductListCardProps = {
 
 function ProductListCard({ id, title, description, icon, products, writable, message, onSave, onAdd }: ProductListCardProps) {
   const [name, setName] = useState('')
+  const [numericDrafts, setNumericDrafts] = useState<Record<string, string>>({})
   const priorityProducts = [...products].sort(
     (first, second) => Number(first.bought) - Number(second.bought)
       || Number(second.toBuy) - Number(first.toBuy),
   )
   const isGroceryList = id === 'grocery-list'
+  const storeGroups = groceryStores
+    .map((store) => ({
+      store,
+      products: priorityProducts.filter((product) => (product.store ?? 'Other') === store),
+    }))
+    .filter((group) => group.products.length > 0)
+    .map((group) => ({
+      ...group,
+      total: group.products.reduce(
+        (sum, product) => sum + (product.toBuy && !product.bought ? product.stock * product.price : 0),
+        0,
+      ),
+    }))
   const total = products.reduce(
     (sum, product) => sum + (isGroceryList && (!product.toBuy || product.bought) ? 0 : product.stock * product.price),
     0,
@@ -134,6 +162,26 @@ function ProductListCard({ id, title, description, icon, products, writable, mes
     event.preventDefault()
     const trimmedName = name.trim()
     if (trimmedName && onAdd(trimmedName)) setName('')
+  }
+
+  function updateProductNumber(productId: string, field: 'stock' | 'price', rawValue: string) {
+    const draftKey = `${productId}-${field}`
+    setNumericDrafts((current) => ({ ...current, [draftKey]: rawValue }))
+  }
+
+  function saveProductNumber(productId: string, field: 'stock' | 'price') {
+    const draftKey = `${productId}-${field}`
+    const rawValue = numericDrafts[draftKey]
+    if (rawValue === undefined) return
+    const value = Number(rawValue)
+    if (rawValue.trim() && Number.isFinite(value) && value >= 0) {
+      const saved = onSave(products.map((product) => product.id === productId ? { ...product, [field]: value } : product))
+      if (!saved) return
+    }
+    setNumericDrafts((current) => {
+      const { [draftKey]: _draft, ...remaining } = current
+      return remaining
+    })
   }
 
   return (
@@ -150,7 +198,27 @@ function ProductListCard({ id, title, description, icon, products, writable, mes
       </form>
       {message && <p className="grocery-error" role="alert">{message}</p>}
       {!products.length && <p className="grocery-empty">No products yet. Add a product to get started.</p>}
-      {!!products.length && <ul className="grocery-product-list" aria-labelledby={`${id}-heading`}>
+      {!!products.length && (isGroceryList ? storeGroups.map(({ store, products: storeProducts, total: storeTotal }) => (
+        <section className="grocery-store-group" key={store} aria-labelledby={`${id}-${store.toLowerCase()}-heading`}>
+          <div className="grocery-store-heading"><h3 id={`${id}-${store.toLowerCase()}-heading`}>{store}</h3><span>To buy total: <strong>{currency.format(storeTotal)}</strong></span></div>
+          <ul className="grocery-product-list">
+          {storeProducts.map((product) => (
+          <li className={`grocery-product${product.toBuy && !product.bought ? ' priority' : ''}${product.bought ? ' bought' : ''}`} key={product.id}>
+            <label className="grocery-bought-control">
+              <input type="checkbox" checked={product.bought} disabled={!writable} onChange={() => onSave(products.map((item) => item.id === product.id ? { ...item, bought: !item.bought } : item))} />
+              <span className="visually-hidden">Mark {product.name} as bought</span>
+            </label>
+            <div className="grocery-product-name"><strong>{product.name}</strong>{product.toBuy && !product.bought && <span className="grocery-priority-badge">To buy</span>}</div>
+            <label className="grocery-row-field grocery-stock-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="text" inputMode="decimal" value={numericDrafts[`${product.id}-stock`] ?? String(product.stock)} disabled={!writable} onChange={(event) => updateProductNumber(product.id, 'stock', event.target.value)} onBlur={() => saveProductNumber(product.id, 'stock')} /></label>
+            <label className="grocery-row-field grocery-price-field"><span className="visually-hidden">Unit price</span><span className="currency-prefix" aria-hidden="true">₱</span><input aria-label={`Unit price for ${product.name}`} type="text" inputMode="decimal" value={numericDrafts[`${product.id}-price`] ?? product.price.toFixed(2)} disabled={!writable} onChange={(event) => updateProductNumber(product.id, 'price', event.target.value)} onBlur={() => saveProductNumber(product.id, 'price')} /></label>
+            <label className="grocery-row-field grocery-buy-field"><span className="visually-hidden">Stock status</span><select aria-label={`Stock status for ${product.name}`} value={product.toBuy ? 'yes' : 'no'} disabled={!writable} onChange={(event) => onSave(products.map((item) => item.id === product.id ? { ...item, toBuy: event.target.value === 'yes' } : item))}><option value="yes">Buy</option><option value="no">With stock</option></select></label>
+            <label className="grocery-row-field grocery-store-field"><span className="visually-hidden">Store</span><select aria-label={`Store for ${product.name}`} value={product.store ?? 'Other'} disabled={!writable} onChange={(event) => onSave(products.map((item) => item.id === product.id ? { ...item, store: event.target.value } : item))}>{groceryStores.map((storeName) => <option key={storeName}>{storeName}</option>)}</select></label>
+            <button className="grocery-delete" type="button" aria-label={`Remove ${product.name}`} disabled={!writable} onClick={() => onSave(products.filter((item) => item.id !== product.id))}>×</button>
+          </li>
+          ))}
+          </ul>
+        </section>
+      )) : <ul className="grocery-product-list" aria-labelledby={`${id}-heading`}>
         {priorityProducts.map((product) => (
           <li className={`grocery-product${product.toBuy && !product.bought ? ' priority' : ''}${product.bought ? ' bought' : ''}`} key={product.id}>
             <label className="grocery-bought-control">
@@ -158,32 +226,15 @@ function ProductListCard({ id, title, description, icon, products, writable, mes
               <span className="visually-hidden">Mark {product.name} as bought</span>
             </label>
             <div className="grocery-product-name"><strong>{product.name}</strong>{product.toBuy && !product.bought && <span className="grocery-priority-badge">To buy</span>}</div>
-            <label className="grocery-row-field grocery-stock-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="number" min="0" step="any" value={product.stock} disabled={!writable} onChange={(event) => {
-              const stock = Number(event.target.value)
-              if (Number.isFinite(stock) && stock >= 0) {
-                onSave(products.map((item) => item.id === product.id ? { ...item, stock } : item))
-              }
-            }} /></label>
-            <label className="grocery-row-field grocery-price-field"><span className="visually-hidden">Unit price</span><span className="currency-prefix" aria-hidden="true">₱</span><input aria-label={`Unit price for ${product.name}`} type="number" min="0" step="0.01" value={product.price.toFixed(2)} disabled={!writable} onChange={(event) => {
-              const price = Number(event.target.value)
-              if (Number.isFinite(price) && price >= 0) {
-                onSave(products.map((item) => item.id === product.id ? { ...item, price } : item))
-              }
-            }} /></label>
+            <label className="grocery-row-field grocery-stock-field"><span className="visually-hidden">Stock</span><input aria-label={`Current stock for ${product.name}`} type="text" inputMode="decimal" value={numericDrafts[`${product.id}-stock`] ?? String(product.stock)} disabled={!writable} onChange={(event) => updateProductNumber(product.id, 'stock', event.target.value)} onBlur={() => saveProductNumber(product.id, 'stock')} /></label>
+            <label className="grocery-row-field grocery-price-field"><span className="visually-hidden">Unit price</span><span className="currency-prefix" aria-hidden="true">₱</span><input aria-label={`Unit price for ${product.name}`} type="text" inputMode="decimal" value={numericDrafts[`${product.id}-price`] ?? product.price.toFixed(2)} disabled={!writable} onChange={(event) => updateProductNumber(product.id, 'price', event.target.value)} onBlur={() => saveProductNumber(product.id, 'price')} /></label>
             <label className="grocery-row-field grocery-buy-field"><span className="visually-hidden">To buy</span><select aria-label={`Mark ${product.name} to buy`} value={product.toBuy ? 'yes' : 'no'} disabled={!writable} onChange={(event) => onSave(products.map((item) => item.id === product.id ? { ...item, toBuy: event.target.value === 'yes' } : item))}><option value="yes">Buy</option><option value="no">Skip</option></select></label>
             <button className="grocery-delete" type="button" aria-label={`Remove ${product.name}`} disabled={!writable} onClick={() => onSave(products.filter((item) => item.id !== product.id))}>×</button>
           </li>
         ))}
-      </ul>}
+      </ul>)}
     </article>
   )
-}
-
-type BillItem = {
-  id: string
-  name: string
-  amount: number
-  paid: boolean
 }
 
 type BillStorageState = {
@@ -192,33 +243,8 @@ type BillStorageState = {
   message: string
 }
 
-function readBillStorage(storageKey: string, period: string): BillStorageState {
-  try {
-    const savedBills = window.localStorage.getItem(storageKey)
-    if (!savedBills) return { bills: [], writable: true, message: '' }
-    const parsed: unknown = JSON.parse(savedBills)
-    if (!Array.isArray(parsed) || !parsed.every((bill) => (
-      typeof bill.id === 'string'
-      && typeof bill.name === 'string'
-      && typeof bill.amount === 'number'
-      && Number.isFinite(bill.amount)
-      && bill.amount >= 0
-      && (bill.paid === undefined || typeof bill.paid === 'boolean')
-    ))) {
-      throw new Error(`Saved ${period} bills have an invalid format.`)
-    }
-    return {
-      bills: parsed.map((bill) => ({ ...bill, paid: bill.paid ?? false })) as BillItem[],
-      writable: true,
-      message: '',
-    }
-  } catch (error) {
-    return {
-      bills: [],
-      writable: false,
-      message: error instanceof Error ? error.message : `Unable to load ${period} bills.`,
-    }
-  }
+function readBillStorage(_storageKey: string, _period: string): BillStorageState {
+  return { bills: [], writable: true, message: '' }
 }
 
 type BillsCardProps = {
@@ -231,6 +257,7 @@ type BillsCardProps = {
 
 function BillsCard({ period, bills, writable, message, onSave }: BillsCardProps) {
   const [name, setName] = useState('')
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({})
   const total = bills.reduce((sum, bill) => sum + bill.amount, 0)
 
   function addBill(event: FormEvent<HTMLFormElement>) {
@@ -244,6 +271,20 @@ function BillsCard({ period, bills, writable, message, onSave }: BillsCardProps)
       paid: false,
     }])
     if (saved) setName('')
+  }
+
+  function saveBillAmount(billId: string) {
+    const rawValue = amountDrafts[billId]
+    if (rawValue === undefined) return
+    const amount = Number(rawValue)
+    if (rawValue.trim() && Number.isFinite(amount) && amount >= 0) {
+      const saved = onSave(bills.map((bill) => bill.id === billId ? { ...bill, amount } : bill))
+      if (!saved) return
+    }
+    setAmountDrafts((current) => {
+      const { [billId]: _draft, ...remaining } = current
+      return remaining
+    })
   }
 
   return (
@@ -270,12 +311,7 @@ function BillsCard({ period, bills, writable, message, onSave }: BillsCardProps)
             <label className="bill-amount-field">
               <span className="visually-hidden">Amount for {bill.name}</span>
               <span aria-hidden="true">₱</span>
-              <input aria-label={`Amount for ${bill.name}`} type="number" min="0" step="0.01" value={bill.amount.toFixed(2)} disabled={!writable} onChange={(event) => {
-                const amount = Number(event.target.value)
-                if (Number.isFinite(amount) && amount >= 0) {
-                  onSave(bills.map((item) => item.id === bill.id ? { ...item, amount } : item))
-                }
-              }} />
+              <input aria-label={`Amount for ${bill.name}`} type="text" inputMode="decimal" value={amountDrafts[bill.id] ?? bill.amount.toFixed(2)} disabled={!writable} onChange={(event) => setAmountDrafts((current) => ({ ...current, [bill.id]: event.target.value }))} onBlur={() => saveBillAmount(bill.id)} />
             </label>
             <button className="grocery-delete" type="button" aria-label={`Remove ${bill.name}`} disabled={!writable} onClick={() => onSave(bills.filter((item) => item.id !== bill.id))}>×</button>
           </li>
@@ -286,33 +322,7 @@ function BillsCard({ period, bills, writable, message, onSave }: BillsCardProps)
 }
 
 function readTodoStorage(): TodoStorageState {
-  try {
-    const savedItems = window.localStorage.getItem('budget-tracker-todos')
-    if (!savedItems) return { items: [], writable: true, message: '' }
-    const parsed: unknown = JSON.parse(savedItems)
-    if (!Array.isArray(parsed) || !parsed.every((item) => (
-      typeof item.id === 'string'
-      && typeof item.title === 'string'
-      && typeof item.completed === 'boolean'
-    ))) {
-      throw new Error('Saved to-do list has an invalid format.')
-    }
-    const savedDate = window.localStorage.getItem('budget-tracker-todos-date')
-    const items = parsed as TodoItem[]
-    return {
-      items: savedDate && savedDate !== toISODate(new Date())
-        ? items.map((item) => ({ ...item, completed: false }))
-        : items,
-      writable: true,
-      message: '',
-    }
-  } catch (error) {
-    return {
-      items: [],
-      writable: false,
-      message: error instanceof Error ? error.message : 'Unable to load saved to-do items.',
-    }
-  }
+  return { items: [], writable: true, message: '' }
 }
 
 // Format the current local date for the dashboard greeting.
@@ -339,15 +349,12 @@ function formatDate(date: string) {
 // Render the complete budget dashboard.
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets'>('dashboard')
-  // Restore the user's saved color theme, defaulting to light mode.
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => (
-    window.localStorage.getItem('budget-tracker-theme') === 'dark' ? 'dark' : 'light'
-  ))
-  // Restore the saved text-size step, using the middle step as the default.
-  const [fontSizeScale, setFontSizeScale] = useState(() => {
-    const savedScale = Number(window.localStorage.getItem('budget-tracker-font-size'))
-    return Number.isInteger(savedScale) && savedScale >= 0 && savedScale <= 2 ? savedScale : 1
-  })
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [fontSizeScale, setFontSizeScale] = useState(1)
+  const [familyItems, setFamilyItems] = useState<BudgetListItem[]>([])
+  const [allowanceItems, setAllowanceItems] = useState<BudgetListItem[]>([])
+  const [seldomItems, setSeldomItems] = useState<BudgetListItem[]>([])
+  const [workbookReady, setWorkbookReady] = useState(false)
   // Hold the transactions loaded from the selected Excel workbook.
   const [transactions, setTransactions] = useState<Transaction[]>([])
   // Hold transactions that have been moved into expense history.
@@ -394,24 +401,61 @@ function App() {
   const [directoryHandle, setDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
   // Keep the saved handle available when browser permission must be renewed.
   const [savedDirectoryHandle, setSavedDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
+  const workbookWriteQueue = useRef<Promise<void>>(Promise.resolve())
 
-  // Apply the selected theme to the page and remember it for the next visit.
+  function getWorkbookData(nextTransactions = transactions, nextHistory = history): WorkbookData {
+    return {
+      transactions: nextTransactions,
+      history: nextHistory,
+      groceryProducts: groceryState.products,
+      nonGroceryProducts: nonGroceryState.products,
+      firstBills: firstBillState.bills,
+      secondBills: secondBillState.bills,
+      familyItems,
+      allowanceItems,
+      seldomItems,
+    }
+  }
+
+  function queueWorkbookWrite(handle: BrowserDirectoryHandle, data: WorkbookData) {
+    const write = workbookWriteQueue.current.then(() => writeWorkbook(handle, data))
+    workbookWriteQueue.current = write.then(() => undefined, () => undefined)
+    return write
+  }
+
+  function applyWorkbookLists(data: WorkbookData) {
+    setGroceryState({ products: data.groceryProducts, writable: true, message: '' })
+    setNonGroceryState({ products: data.nonGroceryProducts, writable: true, message: '' })
+    setFirstBillState({ bills: data.firstBills, writable: true, message: '' })
+    setSecondBillState({ bills: data.secondBills, writable: true, message: '' })
+    setFamilyItems(data.familyItems)
+    setAllowanceItems(data.allowanceItems)
+    setSeldomItems(data.seldomItems)
+  }
+
+  // Apply the selected theme to the page for the current session.
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('budget-tracker-theme', theme)
   }, [theme])
 
-  // Apply and persist the selected text size so it is shared by both themes.
+  // Apply the selected text size for the current session.
   useEffect(() => {
     document.documentElement.dataset.fontSizeScale = String(fontSizeScale)
-    window.localStorage.setItem('budget-tracker-font-size', String(fontSizeScale))
   }, [fontSizeScale])
+
+  useEffect(() => {
+    if (!directoryHandle || !workbookReady) return
+    const data = getWorkbookData()
+    queueWorkbookWrite(directoryHandle, data)
+      .then(() => setDatabaseMessage(''))
+      .catch((error: unknown) => {
+        setDatabaseMessage(error instanceof Error ? error.message : 'Unable to save budget lists to the Excel workbook.')
+      })
+  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems])
 
   function saveTodoItems(items: TodoItem[]) {
     try {
-      window.localStorage.setItem('budget-tracker-todos', JSON.stringify(items))
-      window.localStorage.setItem('budget-tracker-todos-date', toISODate(new Date()))
-      setTodoState((current) => ({ ...current, items }))
+      setTodoState((current) => ({ ...current, items, writable: true, message: '' }))
       return true
     } catch (error) {
       setTodoState((current) => ({
@@ -422,30 +466,6 @@ function App() {
       return false
     }
   }
-
-  // Keep the task list saved, and clear completion checks when a new day begins.
-  useEffect(() => {
-    if (!todoStorageWritable) return
-    const dailyReset = window.setInterval(() => {
-      const currentDate = toISODate(new Date())
-      try {
-        const savedDate = window.localStorage.getItem('budget-tracker-todos-date')
-        if (!savedDate) {
-          window.localStorage.setItem('budget-tracker-todos-date', currentDate)
-        } else if (savedDate !== currentDate) {
-          saveTodoItems(todoItems.map((item) => ({ ...item, completed: false })))
-        }
-      } catch (error) {
-        setTodoState((current) => ({
-          ...current,
-          writable: false,
-          message: error instanceof Error ? error.message : 'Unable to reset to-do items for the new day.',
-        }))
-      }
-    }, 60_000)
-
-    return () => window.clearInterval(dailyReset)
-  }, [todoItems, todoStorageWritable])
 
   // Restore the previously selected folder when the browser still grants access.
   useEffect(() => {
@@ -471,6 +491,8 @@ function App() {
         setTransactions(data.transactions)
         // Populate the archived transaction state from the workbook.
         setHistory(data.history)
+        applyWorkbookLists(data)
+        setWorkbookReady(true)
       // Close the current callback, block, or value collection.
       })
       // Display a readable message if restoring or loading the workbook fails.
@@ -630,7 +652,7 @@ function App() {
     // Write the next transaction list while preserving the current history.
     try {
       // Wait until this asynchronous save or browser operation finishes.
-      await writeWorkbook(directoryHandle, { transactions: nextTransactions, history })
+      await queueWorkbookWrite(directoryHandle, getWorkbookData(nextTransactions))
       // Reflect the saved transaction list in the dashboard.
       setTransactions(nextTransactions)
       // Clear a previous folder or workbook error after a successful save.
@@ -689,7 +711,7 @@ function App() {
     // Save the new workbook before clearing the active transaction list.
     try {
       // Wait until this asynchronous save or browser operation finishes.
-      await writeWorkbook(directoryHandle, { transactions: [], history: nextHistory })
+      await queueWorkbookWrite(directoryHandle, getWorkbookData([], nextHistory))
       // Clear the current ledger after the archive workbook write succeeds.
       setTransactions([])
       // Show the newly archived group in the history panel.
@@ -733,6 +755,8 @@ function App() {
       setTransactions(data.transactions)
       // Update React state or form behavior for the operation in progress.
       setHistory(data.history)
+      applyWorkbookLists(data)
+      setWorkbookReady(true)
       // Treat a cancelled picker as normal and report other failures.
     } catch (error) {
       // Check this condition before continuing the dashboard operation.
@@ -774,6 +798,8 @@ function App() {
       setTransactions(data.transactions)
       // Update React state or form behavior for the operation in progress.
       setHistory(data.history)
+      applyWorkbookLists(data)
+      setWorkbookReady(true)
       // Report permission or file errors so the user can recover.
     } catch (error) {
       // Update React state or form behavior for the operation in progress.
@@ -794,7 +820,7 @@ function App() {
     // Convert the input amount from text into a number.
     const numericAmount = Number(amount)
     // Ignore incomplete or invalid entries.
-    if (!title.trim() || !numericAmount || numericAmount < 0) return
+    if (!title.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0) return
     // Add the newest transaction to the selected date group.
     const saved = await save([{ id: Date.now(), title: title.trim(), category, amount: numericAmount, type, date }, ...transactions])
     // Check this condition before continuing the dashboard operation.
@@ -821,8 +847,7 @@ function App() {
 
   function saveGroceryProducts(products: GroceryProduct[]) {
     try {
-      window.localStorage.setItem('budget-tracker-grocery-products', JSON.stringify(products))
-      setGroceryState((current) => ({ ...current, products }))
+      setGroceryState((current) => ({ ...current, products, writable: true, message: '' }))
       return true
     } catch (error) {
       setGroceryState((current) => ({
@@ -836,8 +861,7 @@ function App() {
 
   function saveNonGroceryProducts(products: GroceryProduct[]) {
     try {
-      window.localStorage.setItem('budget-tracker-nongrocery-products', JSON.stringify(products))
-      setNonGroceryState((current) => ({ ...current, products }))
+      setNonGroceryState((current) => ({ ...current, products, writable: true, message: '' }))
       return true
     } catch (error) {
       setNonGroceryState((current) => ({
@@ -849,10 +873,9 @@ function App() {
     }
   }
 
-  function saveBills(nextBills: BillItem[], storageKey: string, setState: Dispatch<SetStateAction<BillStorageState>>, period: string) {
+  function saveBills(nextBills: BillItem[], _storageKey: string, setState: Dispatch<SetStateAction<BillStorageState>>, period: string) {
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(nextBills))
-      setState((current) => ({ ...current, bills: nextBills }))
+      setState((current) => ({ ...current, bills: nextBills, writable: true, message: '' }))
       return true
     } catch (error) {
       setState((current) => ({
@@ -869,12 +892,23 @@ function App() {
     return saveProducts([...products, {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
+      store: 'Other',
       stock: 0,
       price: 0,
       toBuy: true,
       bought: false,
     }])
   }
+
+  const budgetOverallTotal = groceryProducts.reduce(
+    (sum, product) => sum + (product.toBuy && !product.bought ? product.stock * product.price : 0),
+    0,
+  ) + nonGroceryProducts.reduce((sum, product) => sum + product.stock * product.price, 0)
+    + firstBills.reduce((sum, bill) => sum + bill.amount, 0)
+    + secondBills.reduce((sum, bill) => sum + bill.amount, 0)
+    + familyItems.reduce((sum, item) => sum + item.amount, 0)
+    + allowanceItems.reduce((sum, item) => sum + item.amount, 0)
+    + seldomItems.reduce((sum, item) => sum + item.amount, 0)
 
   // Return the dashboard layout and its interactive controls.
   return (
@@ -892,7 +926,7 @@ function App() {
       </nav>
       {activeTab === 'dashboard' ? <div id="dashboard-content" role="tabpanel" aria-labelledby="dashboard-tab">
       {/* Show the current day and selected reporting month. */}
-      <section className="welcome-row"><p className="dashboard-date">{formatCurrentDate()}</p><div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div><div className="month-chip">September 2026 <span>⌄</span></div></section>
+      <section className="welcome-row"><p className="dashboard-date">{formatCurrentDate()}</p><div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div></section>
       {/* Display the calculated balance, income, and expense totals. */}
       <section className="stats-grid" aria-label="Financial summary"><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
       {/* Place the daily activity list beside the entry form. */}
@@ -945,7 +979,7 @@ function App() {
         </section>
         {/* Provide controls for adding income and expense entries. */}
         <div className="right-column-stack">
-        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Bills</option><option>Transport</option><option>Gala/Mall</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <>{savedDirectoryHandle && !directoryHandle && <button className="folder-button" type="button" onClick={reconnectSavedDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Reconnecting…' : 'Reconnect saved folder'}</button>}<button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Connecting…' : 'Choose folder'}</button></> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The browser remembers the folder, but may ask you to reconnect if permission expires.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside>
+        <aside className="add-panel"><div className="section-heading"><div><h2>Add transaction</h2><p className="muted">Keep your ledger up to date</p></div><span className="plus-icon">+</span></div><form onSubmit={addTransaction}><div className="type-toggle"><button type="button" className={type === 'expense' ? 'selected expense-selected' : ''} onClick={() => setType('expense')}>Expense</button><button type="button" className={type === 'income' ? 'selected income-selected' : ''} onClick={() => setType('income')}>Income</button></div><label>Description<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Coffee with friends" required /></label><div className="form-row"><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Food</option><option>Housing</option><option>Bills</option><option>Transport</option><option>Gala/Mall</option><option>Salary</option><option>Side income</option><option>Other</option></select></label><label>Amount<input type="text" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required /></label></div><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label><button className="add-button" type="submit">Add {type}</button></form><div className="database-location"><p>Excel database folder</p><code title={databaseDirectory}>{databaseDirectory || 'No folder selected'}</code>{supportsFolderSelection() ? <>{savedDirectoryHandle && !directoryHandle && <button className="folder-button" type="button" onClick={reconnectSavedDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Reconnecting…' : 'Reconnect saved folder'}</button>}<button className="folder-button" type="button" onClick={chooseDatabaseDirectory} disabled={isConnectingDatabase}>{isConnectingDatabase ? 'Connecting…' : 'Choose folder'}</button></> : <p className="database-error" role="alert">Folder access needs Chrome or Edge on a secure connection.</p>}<p className="database-note">The browser remembers the folder, but may ask you to reconnect if permission expires.</p>{databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}</div></aside>
         <section className="todo-panel" aria-labelledby="todo-heading">
         <div className="section-heading">
           <div><h2 id="todo-heading">To-do list</h2><p className="muted">{todoItems.filter((item) => !item.completed).length} tasks remaining</p></div>
@@ -970,9 +1004,14 @@ function App() {
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
       </div> : <section id="budgets-content" className="budgets-page" role="tabpanel" aria-labelledby="budgets-tab">
         <div className="budgets-heading">
-          <div><p className="eyebrow">Plan your spending</p><h1>Budgets</h1><p className="muted">Keep everyday spending and upcoming plans organized.</p></div>
-          <span className="budgets-total-label">7 budget categories</span>
+          <div>
+            <p className="eyebrow">Plan your spending</p>
+            <div className="budgets-title-row"><h1>Budgets</h1><span className="budgets-total-label"><span>Overall total</span><strong>{currency.format(budgetOverallTotal)}</strong></span></div>
+            <p className="muted">Keep everyday spending and upcoming plans organized.</p>
+          </div>
         </div>
+        {!directoryHandle && <p className="database-error" role="alert">Choose an Excel database folder from the Dashboard to save and edit budget lists.</p>}
+        {databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}
         <div className="budget-cards">
           <ProductListCard
             id="grocery-list"
@@ -980,8 +1019,8 @@ function App() {
             description="Stock and shopping priorities"
             icon="🛒"
             products={groceryProducts}
-            writable={groceryStorageWritable}
-            message={groceryMessage}
+            writable={groceryStorageWritable && Boolean(directoryHandle) && workbookReady}
+            message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : groceryMessage}
             onSave={saveGroceryProducts}
             onAdd={(name) => addProduct(groceryProducts, saveGroceryProducts, groceryStorageWritable, name)}
           />
@@ -991,16 +1030,16 @@ function App() {
             description="Everyday spending"
             icon="🧺"
             products={nonGroceryProducts}
-            writable={nonGroceryStorageWritable}
-            message={nonGroceryMessage}
+            writable={nonGroceryStorageWritable && Boolean(directoryHandle) && workbookReady}
+            message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : nonGroceryMessage}
             onSave={saveNonGroceryProducts}
             onAdd={(name) => addProduct(nonGroceryProducts, saveNonGroceryProducts, nonGroceryStorageWritable, name)}
           />
-          <BillsCard period="Day 1–15" bills={firstBills} writable={firstBillsWritable} message={firstBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-1-15-bills', setFirstBillState, 'Day 1–15')} />
-          <BillsCard period="Day 16–30" bills={secondBills} writable={secondBillsWritable} message={secondBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-16-30-bills', setSecondBillState, 'Day 16–30')} />
-          <article className="budget-card family"><span className="budget-card-icon" aria-hidden="true">💛</span><div><p className="budget-card-kicker">Make room for memories</p><h2>Family bonding</h2><p>Set aside room in your plan for activities with family.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
-          <article className="budget-card allowance"><span className="budget-card-icon" aria-hidden="true">💵</span><div><p className="budget-card-kicker">Payday planning</p><h2>Cut-off allowance</h2><p>Organize allowance for each pay period or cut-off.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
-          <article className="budget-card seldom"><span className="budget-card-icon" aria-hidden="true">✨</span><div><p className="budget-card-kicker">Occasional purchases</p><h2>Seldom buys</h2><p>Track less frequent buys before they catch you by surprise.</p></div><span className="budget-card-arrow" aria-hidden="true">↗</span></article>
+          <BillsCard period="Day 1–15" bills={firstBills} writable={firstBillsWritable && Boolean(directoryHandle) && workbookReady} message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : firstBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-1-15-bills', setFirstBillState, 'Day 1–15')} />
+          <BillsCard period="Day 16–30" bills={secondBills} writable={secondBillsWritable && Boolean(directoryHandle) && workbookReady} message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : secondBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-16-30-bills', setSecondBillState, 'Day 16–30')} />
+          <BudgetItemsCard id="family" title="Family bonding" description="Make room for memories" icon="💛" items={familyItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setFamilyItems} />
+          <BudgetItemsCard id="allowance" title="Cut-off allowance" description="Payday planning" icon="💵" items={allowanceItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setAllowanceItems} />
+          <BudgetItemsCard id="seldom" title="Seldom buys" description="Occasional purchases" icon="✨" items={seldomItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setSeldomItems} />
         </div>
       </section>}
     </main>

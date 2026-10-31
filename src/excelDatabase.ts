@@ -23,6 +23,29 @@ export type Transaction = {
 // Close the current object, callback, or expression.
 }
 
+export type GroceryProduct = {
+  id: string
+  name: string
+  store: string
+  stock: number
+  price: number
+  toBuy: boolean
+  bought: boolean
+}
+
+export type BillItem = {
+  id: string
+  name: string
+  amount: number
+  paid: boolean
+}
+
+export type BudgetListItem = {
+  id: string
+  name: string
+  amount: number
+}
+
 // Extend the browser directory handle with the permission methods used by the app.
 export type BrowserDirectoryHandle = FileSystemDirectoryHandle & {
   // Perform this step as part of the surrounding workbook operation.
@@ -40,11 +63,18 @@ type DirectoryPickerWindow = Window & {
 }
 
 // Keep the active ledger and archived ledger together when reading or writing a workbook.
-type WorkbookData = {
+export type WorkbookData = {
   // Perform this step as part of the surrounding workbook operation.
   transactions: Transaction[]
   // Perform this step as part of the surrounding workbook operation.
   history: Transaction[]
+  groceryProducts: GroceryProduct[]
+  nonGroceryProducts: GroceryProduct[]
+  firstBills: BillItem[]
+  secondBills: BillItem[]
+  familyItems: BudgetListItem[]
+  allowanceItems: BudgetListItem[]
+  seldomItems: BudgetListItem[]
 // Close the current object, callback, or expression.
 }
 
@@ -204,11 +234,11 @@ function workbookTransactions(XLSX: typeof import('xlsx'), sheet: XLSX.WorkSheet
 }
 
 // Build an XLSX workbook containing totals, current transactions, and saved history.
-async function createWorkbook(transactions: Transaction[], history: Transaction[]) {
+async function createWorkbook(data: WorkbookData) {
   // Load SheetJS only when an Excel operation is actually needed.
   const XLSX = await import('xlsx')
   // Calculate income and expense totals from the current transaction list.
-  const totals = transactions.reduce((summary, transaction) => {
+  const totals = data.transactions.reduce((summary, transaction) => {
     // Add this transaction amount to its matching running total.
     summary[transaction.type] += transaction.amount
     // Return the value produced by this function or callback.
@@ -228,7 +258,7 @@ async function createWorkbook(transactions: Transaction[], history: Transaction[
   // Close the current object, callback, or expression.
   ])
   // Convert active transactions into column names suitable for an Excel sheet.
-  const transactionSheet = XLSX.utils.json_to_sheet(transactions.map((transaction) => ({
+  const transactionSheet = XLSX.utils.json_to_sheet(data.transactions.map((transaction) => ({
     // Write the transaction identifier to the Excel column.
     ID: transaction.id,
     // Write the transaction date to the Excel column.
@@ -244,7 +274,7 @@ async function createWorkbook(transactions: Transaction[], history: Transaction[
   // Perform this step as part of the surrounding workbook operation.
   })))
   // Convert archived transactions into rows, including their history group title.
-  const historySheet = XLSX.utils.json_to_sheet(history.map((transaction) => ({
+  const historySheet = XLSX.utils.json_to_sheet(data.history.map((transaction) => ({
     // Write the transaction identifier to the Excel column.
     ID: transaction.id,
     // Write the transaction date to the Excel column.
@@ -261,6 +291,26 @@ async function createWorkbook(transactions: Transaction[], history: Transaction[
     Amount: transaction.amount,
   // Perform this step as part of the surrounding workbook operation.
   })))
+  const productRows = (products: GroceryProduct[]) => products.map((product) => ({
+    ID: product.id,
+    Name: product.name,
+    Store: product.store,
+    Stock: product.stock,
+    Price: product.price,
+    ToBuy: product.toBuy,
+    Bought: product.bought,
+  }))
+  const billRows = (bills: BillItem[]) => bills.map((bill) => ({
+    ID: bill.id,
+    Name: bill.name,
+    Amount: bill.amount,
+    Paid: bill.paid,
+  }))
+  const budgetItemRows = (items: BudgetListItem[]) => items.map((item) => ({
+    ID: item.id,
+    Name: item.name,
+    Amount: item.amount,
+  }))
   // Set readable widths for summary-sheet columns.
   summarySheet['!cols'] = [{ wch: 22 }, { wch: 16 }]
   // Set readable widths for transaction-sheet columns.
@@ -273,6 +323,13 @@ async function createWorkbook(transactions: Transaction[], history: Transaction[
   XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions')
   // Add archived entries under the expense-history tab name.
   XLSX.utils.book_append_sheet(workbook, historySheet, 'Expense History')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(productRows(data.groceryProducts)), 'Grocery Products')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(productRows(data.nonGroceryProducts)), 'Non-Grocery Products')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(billRows(data.firstBills)), 'Day 1-15 Bills')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(billRows(data.secondBills)), 'Day 16-30 Bills')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.familyItems)), 'Family Bonding')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.allowanceItems)), 'Cut-off Allowance')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.seldomItems)), 'Seldom Buys')
   // Serialize the workbook as bytes that the browser file API can write.
   return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
 // Close the current object, callback, or expression.
@@ -285,7 +342,7 @@ export async function writeWorkbook(handle: BrowserDirectoryHandle, data: Workbo
   // Open a writable stream for replacing the file contents.
   const writable = await fileHandle.createWritable()
   // Generate the workbook bytes and write them into the file.
-  await writable.write(await createWorkbook(data.transactions, data.history))
+  await writable.write(await createWorkbook(data))
   // Close the stream so the browser commits the completed workbook.
   await writable.close()
 // Close the current object, callback, or expression.
@@ -309,7 +366,17 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
   // Initialize a blank file with sample records and return that initial data.
   if (!file.size) {
     // Compute initialData to hold the starter ledger and empty history.
-    const initialData = { transactions: starterTransactions, history: [] }
+    const initialData: WorkbookData = {
+      transactions: starterTransactions,
+      history: [],
+      groceryProducts: [],
+      nonGroceryProducts: [],
+      firstBills: [],
+      secondBills: [],
+      familyItems: [],
+      allowanceItems: [],
+      seldomItems: [],
+    }
     // Wait for this asynchronous operation to complete before continuing.
     await writeWorkbook(handle, initialData)
     // Return the value produced by this function or callback.
@@ -321,12 +388,42 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
   const XLSX = await import('xlsx')
   // Parse the workbook from the browser-provided file bytes.
   const workbook = XLSX.read(await file.arrayBuffer())
+  const rowsFromSheet = (name: string) => workbook.Sheets[name]
+    ? XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[name], { defval: '' })
+    : []
+  const readProducts = (name: string): GroceryProduct[] => rowsFromSheet(name).map((row) => ({
+    id: String(row.ID ?? ''),
+    name: String(row.Name ?? ''),
+    store: String(row.Store || 'Other'),
+    stock: Number(row.Stock ?? 0),
+    price: Number(row.Price ?? 0),
+    toBuy: row.ToBuy === true || row.ToBuy === 'TRUE',
+    bought: row.Bought === true || row.Bought === 'TRUE',
+  }))
+  const readBills = (name: string): BillItem[] => rowsFromSheet(name).map((row) => ({
+    id: String(row.ID ?? ''),
+    name: String(row.Name ?? ''),
+    amount: Number(row.Amount ?? 0),
+    paid: row.Paid === true || row.Paid === 'TRUE',
+  }))
+  const readBudgetItems = (name: string): BudgetListItem[] => rowsFromSheet(name).map((row) => ({
+    id: String(row.ID ?? ''),
+    name: String(row.Name ?? ''),
+    amount: Number(row.Amount ?? 0),
+  }))
   // Return normalized active and archived transaction rows from their sheets.
   return {
     // Continue the surrounding list or object with this value.
     transactions: workbookTransactions(XLSX, workbook.Sheets.Transactions),
     // Continue the surrounding list or object with this value.
     history: workbookTransactions(XLSX, workbook.Sheets['Expense History']),
+    groceryProducts: readProducts('Grocery Products'),
+    nonGroceryProducts: readProducts('Non-Grocery Products'),
+    firstBills: readBills('Day 1-15 Bills'),
+    secondBills: readBills('Day 16-30 Bills'),
+    familyItems: readBudgetItems('Family Bonding'),
+    allowanceItems: readBudgetItems('Cut-off Allowance'),
+    seldomItems: readBudgetItems('Seldom Buys'),
   // Close the current object, callback, or expression.
   }
 // Close the current object, callback, or expression.
