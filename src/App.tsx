@@ -974,7 +974,15 @@ function App() {
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
       {showIntro && <div className="intro-screen" role="status" aria-label="Opening Risen7 budget tracker">
-        <div className="intro-brand-mark" aria-hidden="true">₱</div>
+        <div className="intro-brand-mark" aria-hidden="true">
+          <span>₱</span>
+          <svg className="intro-sprout" viewBox="0 0 72 72" focusable="false">
+            <path className="intro-sprout-stem" d="M39 68c0-13 0-25 1-39" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-left" d="M40 51C23 52 13 43 12 29c15-2 26 7 28 22Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-right" d="M40 42C41 26 51 17 66 18c1 15-9 24-26 24Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-top" d="M39 34C29 22 31 10 41 2c11 9 11 21-2 33Z" />
+          </svg>
+        </div>
         <p className="intro-brand-name">Risen7</p>
         <p className="intro-tagline">Your money, in balance.</p>
       </div>}
@@ -1097,7 +1105,7 @@ function App() {
           />
           <ProductListCard
             id="non-grocery-list"
-            title="Not-grocery list"
+            title="Non-grocery list"
             description="Everyday spending"
             icon="🧺"
             products={nonGroceryProducts}
