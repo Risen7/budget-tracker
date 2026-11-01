@@ -52,6 +52,21 @@ const financialTips = [
   'Celebrate progress, even when you can only save a small amount.',
 ]
 
+const particleColors = [
+  'purple',
+  'medium-blue',
+  'light-blue',
+  'red',
+  'orange',
+  'yellow',
+  'cyan',
+  'light-green',
+  'lime',
+  'magenta',
+  'lightish-red',
+  'pink',
+]
+
 function getDailyFinancialTip(date: string) {
   const [year, month, day] = date.split('-').map(Number)
   const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000)
@@ -377,6 +392,25 @@ function App() {
   const [familyItems, setFamilyItems] = useState<BudgetListItem[]>([])
   const [allowanceItems, setAllowanceItems] = useState<BudgetListItem[]>([])
   const [seldomItems, setSeldomItems] = useState<BudgetListItem[]>([])
+  useEffect(() => {
+    const revealItems = document.querySelectorAll<HTMLElement>('[data-scroll-reveal]')
+    if (!('IntersectionObserver' in window)) {
+      revealItems.forEach((item) => item.classList.add('is-visible'))
+      return
+    }
+
+    const observer = new IntersectionObserver((entries, currentObserver) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          currentObserver.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+
+    revealItems.forEach((item) => observer.observe(item))
+    return () => observer.disconnect()
+  }, [activeTab])
   const [workbookReady, setWorkbookReady] = useState(false)
   // Hold the transactions loaded from the selected Excel workbook.
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -950,6 +984,9 @@ function App() {
   return (
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
+      <div className="particle-background" aria-hidden="true">
+        {particleColors.map((color) => <span className={`particle particle-${color}`} key={color} />)}
+      </div>
       {showIntro && <div className="intro-screen" role="status" aria-label="Opening Risen7 budget tracker">
         <div className="intro-brand-mark" aria-hidden="true">₱</div>
         <p className="intro-brand-name">Risen7</p>
@@ -967,7 +1004,7 @@ function App() {
       </nav>
       {activeTab === 'dashboard' ? <div id="dashboard-content" role="tabpanel" aria-labelledby="dashboard-tab">
       {/* Show the current day and selected reporting month. */}
-      <section className="welcome-row">
+      <section className="welcome-row" data-scroll-reveal>
         <p className="dashboard-date">{formatCurrentDate()}</p>
         <div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div>
         <aside className="financial-tip" aria-labelledby="financial-tip-heading">
@@ -976,9 +1013,9 @@ function App() {
         </aside>
       </section>
       {/* Display the calculated balance, income, and expense totals. */}
-      <section className="stats-grid" aria-label="Financial summary"><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
+      <section className="stats-grid" aria-label="Financial summary" data-scroll-reveal><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
       {/* Place the daily activity list beside the entry form. */}
-      <div className="content-grid">
+      <div className="content-grid" data-scroll-reveal>
         <section className="transactions-panel">
           <div className="weekly-panel">
             <div className="section-heading">
@@ -1049,9 +1086,9 @@ function App() {
         </section>
         </div></div>
       {/* Show each archived group, its saved totals, and its expandable transaction list. */}
-      <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
+      <section className="history-panel" data-scroll-reveal><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
       </div> : <section id="budgets-content" className="budgets-page" role="tabpanel" aria-labelledby="budgets-tab">
-        <div className="budgets-heading">
+        <div className="budgets-heading" data-scroll-reveal>
           <div>
             <p className="eyebrow">Plan your spending</p>
             <div className="budgets-title-row"><h1>Budgets</h1><span className="budgets-total-label"><span>Overall total</span><strong>{currency.format(budgetOverallTotal)}</strong></span></div>
@@ -1060,7 +1097,7 @@ function App() {
         </div>
         {!directoryHandle && <p className="database-error" role="alert">Choose an Excel database folder from the Dashboard to save and edit budget lists.</p>}
         {databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}
-        <div className="budget-cards">
+        <div className="budget-cards" data-scroll-reveal>
           <ProductListCard
             id="grocery-list"
             title="Grocery list"
