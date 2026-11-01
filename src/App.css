@@ -1354,18 +1354,36 @@ input, select { min-height: 44px; font-size: 16px; }
 .particle-lightish-red { --particle-color: #f04c81; }
 .particle-pink { --particle-color: #ff4293; }
 
-.particle:nth-child(1) { --particle-top: 8%; --particle-left: 9%; --particle-size: 32px; --particle-duration: 27s; --particle-delay: -8s; }
-.particle:nth-child(2) { --particle-top: 17%; --particle-left: 78%; --particle-size: 22px; --particle-duration: 34s; --particle-delay: -19s; }
-.particle:nth-child(3) { --particle-top: 32%; --particle-left: 22%; --particle-size: 40px; --particle-duration: 31s; --particle-delay: -12s; }
-.particle:nth-child(4) { --particle-top: 45%; --particle-left: 91%; --particle-size: 26px; --particle-duration: 29s; --particle-delay: -23s; }
-.particle:nth-child(5) { --particle-top: 58%; --particle-left: 8%; --particle-size: 36px; --particle-duration: 36s; --particle-delay: -16s; }
-.particle:nth-child(6) { --particle-top: 72%; --particle-left: 72%; --particle-size: 24px; --particle-duration: 32s; --particle-delay: -5s; }
-.particle:nth-child(7) { --particle-top: 84%; --particle-left: 36%; --particle-size: 30px; --particle-duration: 28s; --particle-delay: -21s; }
-.particle:nth-child(8) { --particle-top: 25%; --particle-left: 51%; --particle-size: 18px; --particle-duration: 38s; --particle-delay: -14s; }
-.particle:nth-child(9) { --particle-top: 66%; --particle-left: 48%; --particle-size: 42px; --particle-duration: 35s; --particle-delay: -27s; }
-.particle:nth-child(10) { --particle-top: 91%; --particle-left: 87%; --particle-size: 20px; --particle-duration: 30s; --particle-delay: -10s; }
-.particle:nth-child(11) { --particle-top: 4%; --particle-left: 43%; --particle-size: 28px; --particle-duration: 33s; --particle-delay: -17s; }
-.particle:nth-child(12) { --particle-top: 49%; --particle-left: 65%; --particle-size: 34px; --particle-duration: 37s; --particle-delay: -25s; }
+.particle:nth-child(1) { --particle-top: 8%; --particle-left: 9%; --particle-size: 46px; --particle-duration: 27s; --particle-delay: -8s; }
+.particle:nth-child(2) { --particle-top: 17%; --particle-left: 78%; --particle-size: 36px; --particle-duration: 34s; --particle-delay: -19s; }
+.particle:nth-child(3) { --particle-top: 32%; --particle-left: 22%; --particle-size: 56px; --particle-duration: 31s; --particle-delay: -12s; }
+.particle:nth-child(4) { --particle-top: 45%; --particle-left: 91%; --particle-size: 40px; --particle-duration: 29s; --particle-delay: -23s; }
+.particle:nth-child(5) { --particle-top: 58%; --particle-left: 8%; --particle-size: 52px; --particle-duration: 36s; --particle-delay: -16s; }
+.particle:nth-child(6) { --particle-top: 72%; --particle-left: 72%; --particle-size: 38px; --particle-duration: 32s; --particle-delay: -5s; }
+.particle:nth-child(7) { --particle-top: 84%; --particle-left: 36%; --particle-size: 44px; --particle-duration: 28s; --particle-delay: -21s; }
+.particle:nth-child(8) { --particle-top: 25%; --particle-left: 51%; --particle-size: 32px; --particle-duration: 38s; --particle-delay: -14s; }
+.particle:nth-child(9) { --particle-top: 66%; --particle-left: 48%; --particle-size: 58px; --particle-duration: 35s; --particle-delay: -27s; }
+.particle:nth-child(10) { --particle-top: 91%; --particle-left: 87%; --particle-size: 34px; --particle-duration: 30s; --particle-delay: -10s; }
+.particle:nth-child(11) { --particle-top: 4%; --particle-left: 43%; --particle-size: 42px; --particle-duration: 33s; --particle-delay: -17s; }
+.particle:nth-child(12) { --particle-top: 49%; --particle-left: 65%; --particle-size: 48px; --particle-duration: 37s; --particle-delay: -25s; }
+
+.particle:nth-child(2),
+.particle:nth-child(5),
+.particle:nth-child(8),
+.particle:nth-child(11),
+.particle:nth-child(2)::before,
+.particle:nth-child(5)::before,
+.particle:nth-child(8)::before,
+.particle:nth-child(11)::before {
+	border-radius: 8px;
+}
+
+.particle:nth-child(2)::after,
+.particle:nth-child(5)::after,
+.particle:nth-child(8)::after,
+.particle:nth-child(11)::after {
+	border-radius: 6px;
+}
 
 :root[data-theme='dark'] .particle { opacity: .64; }
 :root[data-theme='dark'] .particle-background::before { opacity: .55; filter: blur(3px) brightness(.7) saturate(.75); }
@@ -1432,8 +1450,8 @@ input, select { min-height: 44px; font-size: 16px; }
 .budget-card,
 .email-export-panel,
 .financial-tip {
-	border: 1px solid rgba(255, 255, 255, .68);
-	background: rgba(255, 255, 255, .68);
+	border: 1px solid rgba(255, 255, 255, .56);
+	background: rgba(255, 255, 255, .52);
 	box-shadow: 0 12px 32px rgba(39, 61, 48, .09), inset 0 1px rgba(255, 255, 255, .7);
 	-webkit-backdrop-filter: blur(16px) saturate(145%);
 	backdrop-filter: blur(16px) saturate(145%);
@@ -1442,7 +1460,7 @@ input, select { min-height: 44px; font-size: 16px; }
 .stat-card.balance,
 .todo-panel {
 	border-color: rgba(89, 132, 112, .48);
-	background: rgba(53, 95, 82, .78);
+	background: rgba(53, 95, 82, .68);
 	box-shadow: 0 12px 32px rgba(31, 72, 57, .16), inset 0 1px rgba(255, 255, 255, .18);
 }
 
@@ -1455,14 +1473,14 @@ input, select { min-height: 44px; font-size: 16px; }
 :root[data-theme='dark'] .email-export-panel,
 :root[data-theme='dark'] .financial-tip {
 	border-color: rgba(158, 194, 174, .2);
-	background: rgba(35, 57, 49, .76);
+	background: rgba(35, 57, 49, .66);
 	box-shadow: 0 12px 32px rgba(0, 0, 0, .15), inset 0 1px rgba(255, 255, 255, .07);
 }
 
 :root[data-theme='dark'] .stat-card.balance,
 :root[data-theme='dark'] .todo-panel {
 	border-color: rgba(158, 213, 184, .3);
-	background: rgba(41, 79, 64, .82);
+	background: rgba(41, 79, 64, .72);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
