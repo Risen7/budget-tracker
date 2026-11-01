@@ -37,6 +37,27 @@ function toISODate(date: Date) {
 // Capture today's local date for the transaction date input.
 const today = toISODate(new Date())
 
+const financialTips = [
+  'Set aside savings as soon as income arrives, before planning other spending.',
+  'Review subscriptions regularly and cancel the ones you no longer use.',
+  'Compare prices and make a shopping list before heading to the store.',
+  'Keep a small emergency fund for unexpected expenses.',
+  'Track small daily purchases; they can add up over the month.',
+  'Plan bill payments around your payday to avoid last-minute stress.',
+  'Give yourself a little room for fun in your budget so it stays realistic.',
+  'Before buying something, pause and check whether it fits this month’s plan.',
+  'Set a clear savings goal and break it into smaller, manageable steps.',
+  'Look over your spending once a week and adjust your plan if needed.',
+  'Use cash or a spending limit for categories where it is easy to overspend.',
+  'Celebrate progress, even when you can only save a small amount.',
+]
+
+function getDailyFinancialTip(date: string) {
+  const [year, month, day] = date.split('-').map(Number)
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000)
+  return financialTips[dayNumber % financialTips.length]
+}
+
 type TodoItem = {
   id: string
   title: string
@@ -351,6 +372,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets'>('dashboard')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [fontSizeScale, setFontSizeScale] = useState(1)
+  const [showIntro, setShowIntro] = useState(true)
+  const [dailyTipDate, setDailyTipDate] = useState(() => toISODate(new Date()))
   const [familyItems, setFamilyItems] = useState<BudgetListItem[]>([])
   const [allowanceItems, setAllowanceItems] = useState<BudgetListItem[]>([])
   const [seldomItems, setSeldomItems] = useState<BudgetListItem[]>([])
@@ -402,6 +425,19 @@ function App() {
   // Keep the saved handle available when browser permission must be renewed.
   const [savedDirectoryHandle, setSavedDirectoryHandle] = useState<BrowserDirectoryHandle | null>(null)
   const workbookWriteQueue = useRef<Promise<void>>(Promise.resolve())
+
+  useEffect(() => {
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 450 : 1650
+    const timeout = window.setTimeout(() => setShowIntro(false), duration)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  useEffect(() => {
+    const now = new Date()
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const timeout = window.setTimeout(() => setDailyTipDate(toISODate(new Date())), nextDay.getTime() - now.getTime())
+    return () => window.clearTimeout(timeout)
+  }, [dailyTipDate])
 
   function getWorkbookData(nextTransactions = transactions, nextHistory = history): WorkbookData {
     return {
@@ -914,6 +950,11 @@ function App() {
   return (
     // Wrap the complete dashboard in its centered page container.
     <main className="app-shell">
+      {showIntro && <div className="intro-screen" role="status" aria-label="Opening Risen7 budget tracker">
+        <div className="intro-brand-mark" aria-hidden="true">₱</div>
+        <p className="intro-brand-name">Risen7</p>
+        <p className="intro-tagline">Your money, in balance.</p>
+      </div>}
       {/* Show the brand, subtitle, and account shortcut. */}
       <header className="topbar"><div className="brand-mark">₱</div><div><strong>Risen7</strong><span>Personal finances</span></div><div className="text-size-controls" role="group" aria-label="Text size"><button type="button" aria-label="Decrease text size" onClick={() => setFontSizeScale((size) => Math.max(0, size - 1))} disabled={fontSizeScale === 0}>A−</button><span aria-live="polite">{fontSizeScale === 0 ? '90%' : fontSizeScale === 1 ? '100%' : '110%'}</span><button type="button" aria-label="Increase text size" onClick={() => setFontSizeScale((size) => Math.min(2, size + 1))} disabled={fontSizeScale === 2}>A+</button></div><button className="theme-toggle" type="button" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} aria-pressed={theme === 'dark'} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
         {theme === 'light'
@@ -926,7 +967,14 @@ function App() {
       </nav>
       {activeTab === 'dashboard' ? <div id="dashboard-content" role="tabpanel" aria-labelledby="dashboard-tab">
       {/* Show the current day and selected reporting month. */}
-      <section className="welcome-row"><p className="dashboard-date">{formatCurrentDate()}</p><div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div></section>
+      <section className="welcome-row">
+        <p className="dashboard-date">{formatCurrentDate()}</p>
+        <div className="welcome-copy"><h1>Good morning</h1><p className="muted">Here is your financial snapshot for this month.</p></div>
+        <aside className="financial-tip" aria-labelledby="financial-tip-heading">
+          <div className="financial-tip-heading"><span aria-hidden="true">✦</span><h2 id="financial-tip-heading">Financial tip</h2></div>
+          <p aria-live="polite">{getDailyFinancialTip(dailyTipDate)}</p>
+        </aside>
+      </section>
       {/* Display the calculated balance, income, and expense totals. */}
       <section className="stats-grid" aria-label="Financial summary"><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(totals.income - totals.expense)}</strong><div className="trend positive">↗ 8.4% <small>vs last month</small></div><div className="balance-bar"><span style={{ width: `${Math.min(100, (totals.expense / totals.income) * 100)}%` }} /></div></article><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(totals.income)}</strong><div className="trend positive">↗ 12.6% <small>vs last month</small></div></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(totals.expense)}</strong><div className="trend negative">↘ 3.2% <small>vs last month</small></div></article></section>
       {/* Place the daily activity list beside the entry form. */}
@@ -1037,8 +1085,8 @@ function App() {
           />
           <BillsCard period="Day 1–15" bills={firstBills} writable={firstBillsWritable && Boolean(directoryHandle) && workbookReady} message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : firstBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-1-15-bills', setFirstBillState, 'Day 1–15')} />
           <BillsCard period="Day 16–30" bills={secondBills} writable={secondBillsWritable && Boolean(directoryHandle) && workbookReady} message={!directoryHandle ? 'Choose an Excel database folder from the Dashboard to edit this list.' : secondBillsMessage} onSave={(nextBills) => saveBills(nextBills, 'budget-tracker-day-16-30-bills', setSecondBillState, 'Day 16–30')} />
-          <BudgetItemsCard id="family" title="Family bonding" description="Make room for memories" icon="💛" items={familyItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setFamilyItems} />
-          <BudgetItemsCard id="allowance" title="Cut-off allowance" description="Payday planning" icon="💵" items={allowanceItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setAllowanceItems} />
+          <BudgetItemsCard id="family" title="Family bonding/Events" description="Make room for memories" icon="💛" items={familyItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setFamilyItems} />
+          <BudgetItemsCard id="allowance" title="15days allowance" description="Payday planning" icon="💵" items={allowanceItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setAllowanceItems} />
           <BudgetItemsCard id="seldom" title="Seldom buys" description="Occasional purchases" icon="✨" items={seldomItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setSeldomItems} />
         </div>
       </section>}

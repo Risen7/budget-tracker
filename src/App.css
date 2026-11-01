@@ -816,3 +816,463 @@ body { overflow-x: hidden; }
 	.grocery-store-field { grid-area: store; }
 	.grocery-delete { grid-area: delete; }
 }
+
+.intro-screen {
+	position: fixed;
+	inset: 0;
+	z-index: 10000;
+	display: grid;
+	align-content: center;
+	justify-items: center;
+	background: #f3f0ee;
+	animation: intro-fade 1.65s ease forwards;
+}
+.intro-brand-mark {
+	display: grid;
+	width: 72px;
+	height: 72px;
+	place-items: center;
+	border-radius: 22px;
+	background: #d9f36a;
+	color: #243214;
+	font-size: 42px;
+	font-weight: 800;
+	box-shadow: 0 12px 32px #24321420;
+	animation: intro-mark 1s cubic-bezier(.2, .8, .2, 1) both;
+}
+.intro-brand-name {
+	margin: 20px 0 0;
+	color: #25312b;
+	font-size: 40px;
+	font-weight: 750;
+	letter-spacing: -.8px;
+	animation: intro-copy .65s ease .18s both;
+}
+.intro-tagline {
+	margin: 7px 0 0;
+	color: #78867c;
+	font-size: 18px;
+	letter-spacing: .3px;
+	animation: intro-copy .65s ease .3s both;
+}
+:root[data-theme='dark'] .intro-screen { background: #151313; }
+:root[data-theme='dark'] .intro-brand-name { color: #f6f0ee; }
+:root[data-theme='dark'] .intro-tagline { color: #b0a5a2; }
+
+@keyframes intro-mark {
+	from { opacity: 0; transform: translateY(12px) scale(.82); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes intro-copy {
+	from { opacity: 0; transform: translateY(8px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@keyframes intro-fade {
+	0%, 72% { opacity: 1; }
+	100% { opacity: 0; visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.intro-screen,
+	.intro-brand-mark,
+	.intro-brand-name,
+	.intro-tagline { animation: none; }
+}
+
+:root {
+	--calm-bg: #f1f6f3;
+	--calm-surface: #fff;
+	--calm-soft: #f6faf7;
+	--calm-text: #263a33;
+	--calm-muted: #74867d;
+	--calm-line: #dce8e1;
+	--calm-accent: #438b78;
+	--calm-accent-strong: #347563;
+	--calm-accent-soft: #e5f2ec;
+	--calm-danger: #bb716e;
+	background: var(--calm-bg);
+	color: var(--calm-text);
+}
+:root[data-theme='dark'] {
+	--calm-bg: #17211e;
+	--calm-surface: #202d28;
+	--calm-soft: #263630;
+	--calm-text: #e8f0eb;
+	--calm-muted: #afc0b6;
+	--calm-line: #354940;
+	--calm-accent: #83b9a2;
+	--calm-accent-strong: #9acbb5;
+	--calm-accent-soft: #2b4037;
+	--calm-danger: #e39b94;
+	background: var(--calm-bg);
+	color: var(--calm-text);
+}
+body { background: var(--calm-bg); color: var(--calm-text); }
+.app-shell { max-width: 1240px; }
+.topbar { border-color: var(--calm-line); }
+.topbar span, .muted, .date-label, .budget-card-kicker { color: var(--calm-muted); }
+.brand-mark, .intro-brand-mark { background: #d8eee3; color: #2e6a56; }
+.avatar { background: #e1eee7; color: #426d5c; }
+.main-tabs { border-color: var(--calm-line); }
+.main-tab { color: var(--calm-muted); }
+.main-tab.active { color: var(--calm-accent-strong); }
+.main-tab.active::after { background: var(--calm-accent); }
+.main-tab:focus-visible { outline-color: var(--calm-accent); }
+.welcome-row h1, .budgets-heading h1 { color: var(--calm-text); }
+.dashboard-date, .budgets-heading .eyebrow { color: var(--calm-accent-strong); }
+.stat-card, .transactions-panel, .add-panel, .history-panel, .email-export-panel,
+.budget-card, .month-chip, .filter-button {
+	background: var(--calm-surface);
+	border-color: var(--calm-line);
+	color: var(--calm-text);
+	box-shadow: 0 8px 26px #244b3810;
+}
+.stat-card, .transactions-panel, .add-panel, .history-panel { border-radius: 16px; }
+.stat-card.balance { background: #355f52; border-color: #355f52; color: #fff; }
+.balance .stat-label { color: #d2e6dc; }
+.balance .positive { color: #c9e6a3; }
+.balance-bar { background: #58786b; }
+.balance-bar span { background: #b6d9bb; }
+.stat-label { color: var(--calm-muted); }
+.positive, .income-amount { color: var(--calm-accent-strong); }
+.negative { color: var(--calm-danger); }
+.plus-icon { background: var(--calm-accent-soft); color: var(--calm-accent-strong); }
+.delete-button:hover { color: var(--calm-danger); }
+.content-grid { gap: 22px; }
+.weekly-panel { background: var(--calm-soft); border-color: var(--calm-line); border-radius: 13px; }
+.weekly-total, .transaction-info strong, .amount, .history-group h3 { color: var(--calm-text); }
+.transaction { border-color: var(--calm-line); }
+.transaction-icon.income { background: var(--calm-accent-soft); color: var(--calm-accent-strong); }
+.transaction-icon.expense { background: #f6eae8; color: #9b625e; }
+.chart-bar { fill: var(--calm-accent); }
+.chart-label { fill: var(--calm-muted); }
+.chart-value { fill: var(--calm-text); }
+.type-toggle { background: var(--calm-soft); }
+.type-toggle button.expense-selected, .type-toggle button.income-selected { color: var(--calm-accent-strong); }
+input, select { background: var(--calm-soft); border-color: var(--calm-line); color: var(--calm-text); border-radius: 9px; }
+input:focus, select:focus { border-color: var(--calm-accent); box-shadow: 0 0 0 3px #438b7824; }
+.add-button { background: var(--calm-accent-strong); border-radius: 9px; }
+.add-button:hover { background: #2d6656; }
+.export-button, .folder-button, .collapse-toggle {
+	border-color: var(--calm-line);
+	background: var(--calm-surface);
+	color: var(--calm-accent-strong);
+	border-radius: 9px;
+}
+.export-button { border-color: #b7d5c5; }
+.export-button:hover, .folder-button:hover:not(:disabled) { background: var(--calm-accent-soft); }
+.theme-toggle, .text-size-controls { border-color: var(--calm-line); background: var(--calm-soft); color: var(--calm-text); }
+.theme-toggle:hover { background: var(--calm-accent-soft); }
+.theme-toggle:focus-visible { outline-color: var(--calm-accent); }
+.text-size-controls button, .text-size-controls span { color: var(--calm-text); }
+.history-count { background: var(--calm-accent-soft); color: var(--calm-accent-strong); }
+.database-location { border-color: var(--calm-line); }
+.database-location > p:first-child { color: var(--calm-text); }
+.database-location code, .database-note { color: var(--calm-muted); }
+.database-error, .grocery-error, .todo-error { color: #a55350; }
+.todo-panel { background: #355f52; border-color: #355f52; border-radius: 16px; }
+.todo-panel .add-button { background: #7fb49a; }
+.todo-panel .add-button:hover:not(:disabled) { background: #92c3aa; }
+.todo-item { border-color: #ffffff2a; }
+.todo-item label { color: #fff; }
+.todo-item.completed label span { color: #c7d7ce; }
+.budget-card::before { background: #76aa8d; }
+.budget-card.nongrocery::before, .budget-card.seldom::before { background: #9db9a8; }
+.budget-card.bills::before { background: #7b9f91; }
+.budget-card.family::before { background: #b3b58a; }
+.budget-card.allowance::before { background: #82a9aa; }
+.budget-card-icon { background: var(--calm-accent-soft); }
+.budget-card.nongrocery .budget-card-icon, .budget-card.seldom .budget-card-icon { background: #edf2eb; }
+.budget-card.bills .budget-card-icon { background: #e8f1ed; }
+.budget-card.family .budget-card-icon { background: #f1f2e7; }
+.budget-card.allowance .budget-card-icon { background: #e7f0ef; }
+.budget-items-total, .budgets-total-label strong { color: var(--calm-accent-strong); }
+.budgets-total-label { border-color: var(--calm-line); background: var(--calm-surface); color: var(--calm-muted); }
+.budget-items-list li, .grocery-product { border-color: var(--calm-line); background: var(--calm-soft); color: var(--calm-text); }
+.budget-items-empty, .budget-item-amount { color: var(--calm-muted); }
+.budget-items-list button { color: #95a69d; }
+.budget-items-list button:hover, .todo-delete:hover { background: #f6eae8; color: #9b625e; }
+.product-list-total { border-color: var(--calm-line); background: var(--calm-soft); }
+.product-list-total strong, .grocery-store-heading strong { color: var(--calm-text); }
+.product-list-total span, .grocery-store-heading > span { color: var(--calm-muted); }
+.grocery-store-group h3 { color: var(--calm-accent-strong); }
+.grocery-priority-count { border-color: #e8cbc5; background: #f8efec; color: #9b625e; }
+.grocery-priority-badge { background: #bd8a7f; }
+.grocery-product.priority { border-color: #e8cbc5; border-left-color: #c48278; background: #fbf4f1; }
+.grocery-delete:hover:not(:disabled) { background: #f6eae8; color: #9b625e; }
+.grocery-bought-control input[type='checkbox'], .todo-item input[type='checkbox'] { accent-color: var(--calm-accent); }
+.bill-item { border-color: var(--calm-line); background: var(--calm-soft); }
+.bill-total { border-color: var(--calm-line); background: var(--calm-accent-soft); }
+.bill-total strong { color: var(--calm-accent-strong); }
+.intro-screen { background: var(--calm-bg); }
+.intro-brand-name { color: var(--calm-text); }
+.intro-tagline { color: var(--calm-muted); }
+
+:root[data-theme='dark'] .stat-card,
+:root[data-theme='dark'] .transactions-panel,
+:root[data-theme='dark'] .add-panel,
+:root[data-theme='dark'] .history-panel,
+:root[data-theme='dark'] .todo-panel,
+:root[data-theme='dark'] .email-export-panel,
+:root[data-theme='dark'] .month-chip,
+:root[data-theme='dark'] .filter-button,
+:root[data-theme='dark'] .budget-card,
+:root[data-theme='dark'] .budgets-total-label { background: var(--calm-surface); border-color: var(--calm-line); color: var(--calm-text); }
+:root[data-theme='dark'] .stat-card.balance,
+:root[data-theme='dark'] .todo-panel { background: #29483e; border-color: #355c4f; }
+:root[data-theme='dark'] .welcome-row h1,
+:root[data-theme='dark'] .budgets-heading h1,
+:root[data-theme='dark'] .section-heading h2,
+:root[data-theme='dark'] .history-group h3,
+:root[data-theme='dark'] .weekly-total,
+:root[data-theme='dark'] .transaction-info strong,
+:root[data-theme='dark'] .transaction-info span,
+:root[data-theme='dark'] .amount,
+:root[data-theme='dark'] .budget-card h2,
+:root[data-theme='dark'] .budget-items-total,
+:root[data-theme='dark'] .budgets-total-label strong,
+:root[data-theme='dark'] .product-list-total strong,
+:root[data-theme='dark'] .grocery-product-name strong,
+:root[data-theme='dark'] .grocery-store-heading strong { color: var(--calm-text); }
+:root[data-theme='dark'] .weekly-panel,
+:root[data-theme='dark'] .budget-items-list li,
+:root[data-theme='dark'] .grocery-product,
+:root[data-theme='dark'] .type-toggle,
+:root[data-theme='dark'] .product-list-total,
+:root[data-theme='dark'] .text-size-controls,
+:root[data-theme='dark'] .theme-toggle { background: var(--calm-soft); border-color: var(--calm-line); color: var(--calm-text); }
+:root[data-theme='dark'] .transaction-icon.income { background: #2b4037; color: #a8d7bd; }
+:root[data-theme='dark'] .transaction-icon.expense { background: #453533; color: #e4aaa1; }
+:root[data-theme='dark'] .budget-card.nongrocery .budget-card-icon,
+:root[data-theme='dark'] .budget-card.seldom .budget-card-icon,
+:root[data-theme='dark'] .budget-card.bills .budget-card-icon,
+:root[data-theme='dark'] .budget-card.family .budget-card-icon,
+:root[data-theme='dark'] .budget-card.allowance .budget-card-icon { background: var(--calm-soft); }
+:root[data-theme='dark'] .product-list-total span,
+:root[data-theme='dark'] .grocery-store-heading > span,
+:root[data-theme='dark'] .budget-items-empty,
+:root[data-theme='dark'] .budget-item-amount,
+:root[data-theme='dark'] .text-size-controls button,
+:root[data-theme='dark'] .text-size-controls span { color: var(--calm-muted); }
+:root[data-theme='dark'] .grocery-product.priority { background: #3a302d; border-color: #6a4e47; border-left-color: #ca8b7e; }
+:root[data-theme='dark'] .grocery-priority-count { background: #3a302d; border-color: #6a4e47; color: #e6aaa0; }
+:root[data-theme='dark'] .grocery-priority-badge { background: #9d7269; }
+:root[data-theme='dark'] .budget-items-list button:hover,
+:root[data-theme='dark'] .grocery-delete:hover:not(:disabled),
+:root[data-theme='dark'] .delete-button:hover,
+:root[data-theme='dark'] .todo-delete:hover { background: #453533; color: #e4aaa1; }
+:root[data-theme='dark'] .add-button { background: #508e76; }
+:root[data-theme='dark'] .add-button:hover { background: #64a187; }
+:root[data-theme='dark'] .todo-panel .add-button { background: #79b294; }
+:root[data-theme='dark'] .export-button,
+:root[data-theme='dark'] .folder-button,
+:root[data-theme='dark'] .collapse-toggle { background: var(--calm-soft); border-color: var(--calm-line); color: var(--calm-accent); }
+:root[data-theme='dark'] .database-location > p:first-child,
+:root[data-theme='dark'] .database-location code { color: var(--calm-muted); }
+:root[data-theme='dark'] .database-error,
+:root[data-theme='dark'] .database-location .database-error,
+:root[data-theme='dark'] .grocery-error { color: #e6aaa0; }
+
+button, select, input { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, select:focus-visible, input:focus-visible {
+	outline: 3px solid #438b7880;
+	outline-offset: 2px;
+}
+.main-tab { min-height: 48px; }
+.theme-toggle { width: 44px; height: 44px; }
+.text-size-controls { min-height: 48px; }
+.text-size-controls button { min-width: 44px; min-height: 44px; }
+.avatar { width: 44px; height: 44px; }
+.add-button, .export-button, .folder-button { min-height: 44px; }
+.grocery-delete, .budget-items-list button, .collapse-toggle {
+	width: 44px;
+	min-width: 44px;
+	height: 44px;
+	min-height: 44px;
+}
+.grocery-bought-control, .bill-paid-control { min-width: 44px; min-height: 44px; }
+.grocery-bought-control input[type='checkbox'], .bill-paid-control input[type='checkbox'],
+.todo-item input[type='checkbox'] { width: 22px; height: 22px; }
+.bill-item { grid-template-columns: 44px minmax(0, 1fr) minmax(112px, 140px) 44px; min-height: 60px; }
+.grocery-product { min-height: 68px; }
+
+@media (min-width: 761px) and (max-width: 1100px) {
+	.app-shell { width: min(100% - 48px, 1000px); }
+	.content-grid { grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 16px; }
+	.transactions-panel, .add-panel { padding: 22px 18px; }
+	.budget-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+	.budget-card.product-list-card { padding: 22px; }
+	.grocery-product {
+		grid-template-columns: 44px minmax(120px, 1fr) 76px 96px 92px 44px;
+		gap: 7px;
+		padding: 8px;
+	}
+	.grocery-store-group .grocery-product {
+		grid-template-columns: 44px minmax(120px, 1fr) 76px 96px 92px 100px 44px;
+		gap: 7px;
+		padding: 8px;
+	}
+}
+
+@media (max-width: 760px) {
+	.app-shell { width: min(calc(100% - 32px), 620px); padding-bottom: 48px; }
+	.topbar { min-height: 76px; height: auto; flex-wrap: wrap; row-gap: 10px; padding: 12px 0; }
+	.topbar > div:nth-child(2) { min-width: 0; }
+	.text-size-controls { margin-left: auto; }
+	.main-tabs { gap: 12px; }
+	.main-tab { flex: 1; padding-inline: 8px; }
+	.stats-grid { grid-template-columns: 1fr; gap: 12px; }
+	.stat-card { min-height: 0; padding: 20px; }
+	.content-grid { grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
+	.transactions-panel, .add-panel, .history-panel { padding: 22px 18px; }
+	.section-heading { align-items: center; gap: 12px; }
+	.budget-cards { grid-template-columns: 1fr; gap: 12px; }
+	.budget-card { min-height: 0; padding: 20px; }
+	.budget-card.product-list-card, .budget-card.budget-list-card { padding: 18px; }
+	.budget-card.product-list-card .grocery-card-header { flex-wrap: wrap; }
+	.product-list-total { margin-left: 0; }
+	.grocery-priority-count { margin-left: auto; }
+	.bill-list { grid-template-columns: 1fr; }
+	.bill-form, .grocery-form, .budget-item-form { gap: 10px; }
+	.bill-form button, .grocery-form button, .budget-item-form button { min-height: 48px; }
+	.grocery-store-group .grocery-product,
+	.grocery-product {
+		grid-template-columns: 44px minmax(0, 1fr) 44px;
+		grid-template-areas:
+			"check name delete"
+			". stock ."
+			". price ."
+			". buy .";
+		gap: 8px;
+		padding: 12px;
+	}
+	.grocery-store-group .grocery-product { grid-template-areas:
+		"check name delete"
+		". stock ."
+		". price ."
+		". buy ."
+		". store .";
+	}
+	.grocery-bought-control { grid-area: check; }
+	.grocery-product-name { grid-area: name; min-width: 0; flex-wrap: wrap; gap: 6px; }
+	.grocery-delete { grid-area: delete; justify-self: end; }
+	.grocery-stock-field { grid-area: stock; }
+	.grocery-price-field { grid-area: price; }
+	.grocery-buy-field { grid-area: buy; }
+	.grocery-store-field { grid-area: store; }
+	.grocery-row-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin: 0; color: var(--calm-muted); font-size: 15px; }
+	.grocery-row-field .visually-hidden { position: static; width: auto; height: auto; padding: 0; overflow: visible; clip: auto; white-space: normal; border: 0; }
+	.grocery-row-field input, .grocery-row-field select { width: min(190px, 60%); height: 44px; min-height: 44px; margin: 0; padding: 7px 10px; font-size: 16px; }
+	.bill-item { grid-template-columns: 44px minmax(0, 1fr) minmax(100px, 140px) 44px; gap: 8px; padding: 8px; }
+	.bill-amount-field input { height: 44px; min-height: 44px; }
+	.activity-date-filter { max-width: 48%; min-height: 44px; }
+	.delete-button { width: 44px; min-height: 44px; opacity: 1; }
+	.collapse-toggle { flex: 0 0 44px; }
+	.chart-bar-group { cursor: pointer; }
+}
+
+@media (max-width: 520px) {
+	.app-shell { width: calc(100% - 24px); }
+	.topbar { column-gap: 8px; }
+	.text-size-controls { order: 3; margin-left: auto; }
+	.theme-toggle { margin-left: auto; }
+	.theme-toggle + .avatar { display: none; }
+	.welcome-row { padding: 28px 0 24px; }
+	.welcome-row h1 { font-size: clamp(32px, 9vw, 40px); }
+	.dashboard-date { font-size: clamp(18px, 5vw, 23px); }
+	.stats-grid { gap: 10px; }
+	.stat-card { padding: 18px; }
+	.stat-card strong { font-size: clamp(26px, 8vw, 32px); }
+	.transactions-panel, .add-panel, .history-panel { padding: 18px 14px; }
+	.section-heading { flex-wrap: wrap; }
+	.section-heading > div { flex: 1 1 100%; }
+	.activity-date-filter { width: 100%; max-width: none; }
+	.budgets-title-row { align-items: flex-start; }
+	.budgets-total-label { flex-wrap: wrap; white-space: normal; }
+	.budget-card.product-list-card .grocery-card-header { display: grid; grid-template-columns: 44px minmax(0, 1fr); }
+	.budget-card.product-list-card .grocery-card-header > .product-list-total,
+	.budget-card.product-list-card .grocery-card-header > .grocery-priority-count { grid-column: 1 / -1; margin-left: 0; }
+	.product-list-total { width: 100%; }
+	.product-list-total-value { flex-wrap: wrap; }
+	.grocery-form, .bill-form, .budget-item-form { grid-template-columns: minmax(0, 1fr); }
+	.grocery-form .grocery-add-button, .bill-form button, .budget-item-form .add-button { width: 100%; }
+	.grocery-row-field input, .grocery-row-field select { width: min(180px, 58%); }
+	.bill-card-header { flex-wrap: wrap; }
+	.bill-total { width: 100%; justify-content: space-between; margin-left: 0; }
+	.bill-item { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-areas:
+		"paid name delete"
+		". amount amount"; }
+	.bill-paid-control { grid-area: paid; }
+	.bill-name { grid-area: name; font-size: 15px; }
+	.bill-amount-field { grid-area: amount; justify-content: flex-end; }
+	.bill-amount-field input { width: min(190px, 65%); }
+	.grocery-product-name strong { font-size: 16px; }
+	.grocery-priority-badge { font-size: 11px !important; }
+	.main-tab { font-size: 15px; }
+	.transaction { gap: 8px; }
+	.transaction-info { overflow-wrap: anywhere; }
+	.amount { white-space: nowrap; }
+	.todo-form { align-items: stretch; }
+	.todo-form .add-button { min-height: 48px; }
+}
+
+@media (max-width: 360px) {
+	.app-shell { width: calc(100% - 20px); }
+	.topbar { gap: 7px; }
+	.text-size-controls { gap: 0; }
+	.text-size-controls button { min-width: 36px; }
+	.text-size-controls span { min-width: 34px; font-size: 10px; }
+	.transactions-panel, .add-panel, .history-panel { padding-inline: 12px; }
+	.grocery-product, .grocery-store-group .grocery-product { padding: 9px; }
+	.bill-item { gap: 5px; }
+}
+
+.welcome-row {
+	grid-template-columns: minmax(0, 1fr) minmax(280px, .9fr);
+	grid-template-areas: "date date" "greeting tip";
+	align-items: center;
+}
+.welcome-copy { min-width: 0; }
+.financial-tip {
+	grid-area: tip;
+	min-width: 0;
+	padding: 18px 20px;
+	border: 1px solid var(--calm-line);
+	border-left: 4px solid var(--calm-accent);
+	border-radius: 14px;
+	background: var(--calm-surface);
+	box-shadow: 0 8px 26px #244b380b;
+}
+.financial-tip-heading { display: flex; align-items: center; gap: 9px; }
+.financial-tip-heading > span { color: var(--calm-accent); font-size: 19px; }
+.financial-tip-heading h2 { margin: 0; color: var(--calm-accent-strong); font-size: 15px; font-weight: 750; }
+.financial-tip > p { margin: 8px 0 0; color: var(--calm-text); font-size: 16px; line-height: 1.55; }
+input, select { min-height: 44px; font-size: 16px; }
+.type-toggle button, .todo-delete, .delete-button { min-width: 44px; min-height: 44px; }
+.transaction { min-height: 60px; }
+
+@media (max-width: 760px) {
+	.welcome-row {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: "date" "greeting" "tip";
+		gap: 16px;
+		padding: 28px 0 24px;
+	}
+	.welcome-copy { text-align: center; }
+	.financial-tip { width: 100%; padding: 16px 18px; text-align: left; }
+	.financial-tip > p { font-size: 16px; }
+	.stat-card { min-height: 140px; }
+	.grocery-form input, .bill-form input, .budget-item-form input { min-height: 48px; }
+}
+
+@media (max-width: 520px) {
+	.welcome-row { gap: 14px; }
+	.financial-tip { padding: 15px 16px; }
+	.financial-tip-heading h2 { font-size: 16px; }
+	.financial-tip > p { font-size: 16px; }
+	.main-tab { min-height: 48px; }
+	.activity-day-toggle, .collapse-toggle { flex: 0 0 44px; width: 44px; height: 44px; }
+	.grocery-form, .bill-form, .budget-item-form { gap: 10px; }
+	.todo-item { min-height: 56px; }
+	.todo-delete { flex: 0 0 44px; }
+	.transaction { min-height: 64px; }
+}
