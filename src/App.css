@@ -844,20 +844,24 @@ body { overflow-x: hidden; }
 .intro-brand-mark > span { position: relative; z-index: 1; }
 .intro-sprout {
 	position: absolute;
-	top: -42px;
-	right: -25px;
-	width: 68px;
-	height: 68px;
+	top: -84px;
+	right: -78px;
+	width: 170px;
+	height: 170px;
 	overflow: visible;
 	transform: scaleY(0);
 	transform-origin: 50% 100%;
 	animation: intro-sprout-grow .7s cubic-bezier(.2, .8, .2, 1) .38s both;
 }
-.intro-sprout-stem { fill: none; stroke: #347563; stroke-linecap: round; stroke-width: 2.5; }
-.intro-sprout-leaf { fill: #83b9a2; stroke: #347563; stroke-linejoin: round; stroke-width: 1.5; }
-.intro-sprout-leaf-left { animation: intro-leaf-scatter-left .8s ease-in .92s both; }
-.intro-sprout-leaf-right { fill: #a4c985; animation: intro-leaf-scatter-right .8s ease-in .92s both; }
-.intro-sprout-leaf-top { fill: #6fae8a; animation: intro-leaf-scatter-top .8s ease-in .92s both; }
+.intro-sprout-stem { fill: none; stroke: #347563; stroke-linecap: round; stroke-width: 3.2; }
+.intro-sprout-leaf { fill: #83b9a2; stroke: #347563; stroke-linejoin: round; stroke-width: 1.8; transform-box: fill-box; transform-origin: center; }
+.intro-sprout-leaf-left { animation: intro-leaf-scatter-left .9s ease-in .92s both; }
+.intro-sprout-leaf-right { fill: #a4c985; animation: intro-leaf-scatter-right .9s ease-in .92s both; }
+.intro-sprout-leaf-top { fill: #6fae8a; animation: intro-leaf-scatter-top .9s ease-in .92s both; }
+.intro-sprout-leaf-large-left { fill: #8ec89d; animation: intro-leaf-scatter-left-large .95s ease-in .96s both; }
+.intro-sprout-leaf-large-right { fill: #b7d67d; animation: intro-leaf-scatter-right-large .95s ease-in .96s both; }
+.intro-sprout-leaf-lower { fill: #a5cb8c; animation: intro-leaf-scatter-bottom .95s ease-in 1.05s both; }
+.intro-sprout-leaf-upper-left { fill: #77b58f; animation: intro-leaf-scatter-top-left .95s ease-in .9s both; }
 .intro-brand-name {
 	margin: 20px 0 0;
 	color: #25312b;
@@ -887,13 +891,25 @@ body { overflow-x: hidden; }
 	100% { opacity: 1; transform: scaleY(1); }
 }
 @keyframes intro-leaf-scatter-left {
-	to { opacity: 0; transform: translate(-25px, -24px) rotate(-35deg) scale(1.15); }
+	to { opacity: 0; transform: translate(-76px, -52px) rotate(-52deg) scale(1.9); }
 }
 @keyframes intro-leaf-scatter-right {
-	to { opacity: 0; transform: translate(29px, -20px) rotate(38deg) scale(1.2); }
+	to { opacity: 0; transform: translate(80px, -44px) rotate(58deg) scale(1.95); }
 }
 @keyframes intro-leaf-scatter-top {
-	to { opacity: 0; transform: translate(4px, -37px) rotate(12deg) scale(1.18); }
+	to { opacity: 0; transform: translate(12px, -82px) rotate(18deg) scale(2.1); }
+}
+@keyframes intro-leaf-scatter-left-large {
+	to { opacity: 0; transform: translate(-120px, -84px) rotate(-70deg) scale(2.75); }
+}
+@keyframes intro-leaf-scatter-right-large {
+	to { opacity: 0; transform: translate(132px, -80px) rotate(74deg) scale(2.8); }
+}
+@keyframes intro-leaf-scatter-bottom {
+	to { opacity: 0; transform: translate(-10px, 92px) rotate(-22deg) scale(2.25); }
+}
+@keyframes intro-leaf-scatter-top-left {
+	to { opacity: 0; transform: translate(-58px, -92px) rotate(-32deg) scale(2.4); }
 }
 @keyframes intro-copy {
 	from { opacity: 0; transform: translateY(8px); }

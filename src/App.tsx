@@ -981,6 +981,10 @@ function App() {
             <path className="intro-sprout-leaf intro-sprout-leaf-left" d="M40 51C23 52 13 43 12 29c15-2 26 7 28 22Z" />
             <path className="intro-sprout-leaf intro-sprout-leaf-right" d="M40 42C41 26 51 17 66 18c1 15-9 24-26 24Z" />
             <path className="intro-sprout-leaf intro-sprout-leaf-top" d="M39 34C29 22 31 10 41 2c11 9 11 21-2 33Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-large-left" d="M36 49C18 46 7 35 5 19c14 2 28 15 31 30Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-large-right" d="M46 48C60 39 68 27 71 11c-12 2-26 17-29 37Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-lower" d="M38 58C27 62 17 71 11 84c15 0 25-10 29-26Z" />
+            <path className="intro-sprout-leaf intro-sprout-leaf-upper-left" d="M33 32C21 22 18 12 24 3c12 8 16 18 9 29Z" />
           </svg>
         </div>
         <p className="intro-brand-name">Risen7</p>
