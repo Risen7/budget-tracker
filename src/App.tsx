@@ -130,19 +130,22 @@ function BudgetItemsCard({ id, title, description, icon, items, writable, onChan
   )
 }
 
-type SemiMonthlySalaryCardProps = {
+type IncomeEntryCardProps = {
+  id: string
+  title: string
+  entryPlaceholder: string
   items: BudgetListItem[]
   writable: boolean
   onChange: (items: BudgetListItem[]) => void
 }
 
-function SemiMonthlySalaryCard({ items, writable, onChange }: SemiMonthlySalaryCardProps) {
+function IncomeEntryCard({ id, title, entryPlaceholder, items, writable, onChange }: IncomeEntryCardProps) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const total = items.reduce((sum, item) => sum + item.amount, 0)
   const numericAmount = Number(amount)
 
-  function addSalary(event: FormEvent<HTMLFormElement>) {
+  function addEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedName = name.trim()
     if (!trimmedName || !Number.isFinite(numericAmount) || numericAmount <= 0) return
@@ -156,24 +159,24 @@ function SemiMonthlySalaryCard({ items, writable, onChange }: SemiMonthlySalaryC
   }
 
   return (
-    <section className="history-panel salary-card" aria-labelledby="semi-monthly-salary-heading">
+    <section className="history-panel salary-card" aria-labelledby={`${id}-heading`}>
       <div className="section-heading">
-        <div><h2 id="semi-monthly-salary-heading">Semi-monthly Salary</h2><p className="muted">Track each payday amount</p></div>
+        <div><h2 id={`${id}-heading`}>{title}</h2><p className="muted">Track each entry amount</p></div>
         <strong className="budget-items-total">{currency.format(total)}</strong>
       </div>
-      <form className="budget-item-form salary-item-form" onSubmit={addSalary}>
-        <input aria-label="Salary entry name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. First payday" required disabled={!writable} />
+      <form className="budget-item-form salary-item-form" onSubmit={addEntry}>
+        <input aria-label="Entry name" value={name} onChange={(event) => setName(event.target.value)} placeholder={entryPlaceholder} required disabled={!writable} />
         <label className="salary-amount-field">Amount
-          <input aria-label="Salary amount" type="text" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required disabled={!writable} />
+          <input aria-label="Entry amount" type="text" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required disabled={!writable} />
         </label>
         <button className="add-button" type="submit" disabled={!writable || !name.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0}>Add</button>
       </form>
-      {!items.length && <p className="budget-items-empty">No salary entries yet.</p>}
+      {!items.length && <p className="budget-items-empty">No entries yet.</p>}
       {!!items.length && <ul className="budget-items-list">{items.map((item) => (
         <li key={item.id}>
           <span>{item.name}</span>
           <strong className="income-amount">{currency.format(item.amount)}</strong>
-          <button type="button" aria-label={`Remove ${item.name} salary entry`} disabled={!writable} onClick={() => onChange(items.filter((current) => current.id !== item.id))}>×</button>
+          <button type="button" aria-label={`Remove ${item.name} entry`} disabled={!writable} onClick={() => onChange(items.filter((current) => current.id !== item.id))}>×</button>
         </li>
       ))}</ul>}
     </section>
@@ -430,6 +433,8 @@ function App() {
   const [seldomItems, setSeldomItems] = useState<BudgetListItem[]>([])
   const [quarterlyExpenses, setQuarterlyExpenses] = useState<BudgetListItem[]>([])
   const [semiMonthlySalary, setSemiMonthlySalary] = useState<BudgetListItem[]>([])
+  const [secondHalfSalary, setSecondHalfSalary] = useState<BudgetListItem[]>([])
+  const [semiAnnualFundsProfit, setSemiAnnualFundsProfit] = useState<BudgetListItem[]>([])
   function changeTab(tab: 'dashboard' | 'budgets' | 'income') {
     setActiveTab(tab)
     if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0, behavior: 'auto' })
@@ -528,6 +533,8 @@ function App() {
       seldomItems,
       quarterlyExpenses,
       semiMonthlySalary,
+      secondHalfSalary,
+      semiAnnualFundsProfit,
     }
   }
 
@@ -547,6 +554,8 @@ function App() {
     setSeldomItems(data.seldomItems)
     setQuarterlyExpenses(data.quarterlyExpenses)
     setSemiMonthlySalary(data.semiMonthlySalary)
+    setSecondHalfSalary(data.secondHalfSalary)
+    setSemiAnnualFundsProfit(data.semiAnnualFundsProfit)
   }
 
   // Apply the selected theme to the page for the current session.
@@ -567,7 +576,7 @@ function App() {
       .catch((error: unknown) => {
         setDatabaseMessage(error instanceof Error ? error.message : 'Unable to save budget lists to the Excel workbook.')
       })
-  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems, quarterlyExpenses, semiMonthlySalary])
+  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems, quarterlyExpenses, semiMonthlySalary, secondHalfSalary, semiAnnualFundsProfit])
 
   function saveTodoItems(items: TodoItem[]) {
     try {
@@ -1198,7 +1207,9 @@ function App() {
         </div>
         {!directoryHandle && <p className="database-error" role="alert">Choose an Excel database folder from the Dashboard to save and edit salary entries.</p>}
         {databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}
-        <SemiMonthlySalaryCard items={semiMonthlySalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiMonthlySalary} />
+        <IncomeEntryCard id="first-half-salary" title="1st-15th Days Salary" entryPlaceholder="e.g. First payday" items={semiMonthlySalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiMonthlySalary} />
+        <IncomeEntryCard id="second-half-salary" title="16th-30th Days Salary" entryPlaceholder="e.g. Second payday" items={secondHalfSalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSecondHalfSalary} />
+        <IncomeEntryCard id="semi-annual-funds-profit" title="Semi-annual Funds Profit" entryPlaceholder="e.g. Mid-year profit" items={semiAnnualFundsProfit} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiAnnualFundsProfit} />
         <section className="history-panel" aria-label="Income transactions">
           <div className="section-heading">
             <div><h2>Income transactions</h2><p className="muted">{incomeTransactions.length} entries</p></div>

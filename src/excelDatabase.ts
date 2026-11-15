@@ -77,6 +77,8 @@ export type WorkbookData = {
   seldomItems: BudgetListItem[]
   quarterlyExpenses: BudgetListItem[]
   semiMonthlySalary: BudgetListItem[]
+  secondHalfSalary: BudgetListItem[]
+  semiAnnualFundsProfit: BudgetListItem[]
 // Close the current object, callback, or expression.
 }
 
@@ -334,6 +336,8 @@ async function createWorkbook(data: WorkbookData) {
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.seldomItems)), 'Seldom Buys')
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.quarterlyExpenses)), 'Quarterly Expenses')
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.semiMonthlySalary)), 'Semi-monthly Salary')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.secondHalfSalary)), '16th-30th Days Salary')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.semiAnnualFundsProfit)), 'Semi-annual Funds Profit')
   // Serialize the workbook as bytes that the browser file API can write.
   return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
 // Close the current object, callback, or expression.
@@ -382,6 +386,8 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
       seldomItems: [],
       quarterlyExpenses: [],
       semiMonthlySalary: [],
+      secondHalfSalary: [],
+      semiAnnualFundsProfit: [],
     }
     // Wait for this asynchronous operation to complete before continuing.
     await writeWorkbook(handle, initialData)
@@ -432,6 +438,8 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
     seldomItems: readBudgetItems('Seldom Buys'),
     quarterlyExpenses: readBudgetItems('Quarterly Expenses'),
     semiMonthlySalary: readBudgetItems('Semi-monthly Salary'),
+    secondHalfSalary: readBudgetItems('16th-30th Days Salary'),
+    semiAnnualFundsProfit: readBudgetItems('Semi-annual Funds Profit'),
   // Close the current object, callback, or expression.
   }
 // Close the current object, callback, or expression.
