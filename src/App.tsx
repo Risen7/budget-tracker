@@ -129,6 +129,56 @@ function BudgetItemsCard({ id, title, description, icon, items, writable, onChan
   )
 }
 
+type SemiMonthlySalaryCardProps = {
+  items: BudgetListItem[]
+  writable: boolean
+  onChange: (items: BudgetListItem[]) => void
+}
+
+function SemiMonthlySalaryCard({ items, writable, onChange }: SemiMonthlySalaryCardProps) {
+  const [name, setName] = useState('')
+  const [amount, setAmount] = useState('')
+  const total = items.reduce((sum, item) => sum + item.amount, 0)
+  const numericAmount = Number(amount)
+
+  function addSalary(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName || !Number.isFinite(numericAmount) || numericAmount <= 0) return
+    onChange([...items, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: trimmedName,
+      amount: numericAmount,
+    }])
+    setName('')
+    setAmount('')
+  }
+
+  return (
+    <section className="history-panel salary-card" aria-labelledby="semi-monthly-salary-heading">
+      <div className="section-heading">
+        <div><h2 id="semi-monthly-salary-heading">Semi-monthly Salary</h2><p className="muted">Track each payday amount</p></div>
+        <strong className="budget-items-total">{currency.format(total)}</strong>
+      </div>
+      <form className="budget-item-form salary-item-form" onSubmit={addSalary}>
+        <input aria-label="Salary entry name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. First payday" required disabled={!writable} />
+        <label className="salary-amount-field">Amount
+          <input aria-label="Salary amount" type="text" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="₱ 0.00" required disabled={!writable} />
+        </label>
+        <button className="add-button" type="submit" disabled={!writable || !name.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0}>Add</button>
+      </form>
+      {!items.length && <p className="budget-items-empty">No salary entries yet.</p>}
+      {!!items.length && <ul className="budget-items-list">{items.map((item) => (
+        <li key={item.id}>
+          <span>{item.name}</span>
+          <strong className="income-amount">{currency.format(item.amount)}</strong>
+          <button type="button" aria-label={`Remove ${item.name} salary entry`} disabled={!writable} onClick={() => onChange(items.filter((current) => current.id !== item.id))}>×</button>
+        </li>
+      ))}</ul>}
+    </section>
+  )
+}
+
 const groceryStores = ['Gleemart', 'Walter', 'Dali', 'Other']
 
 type GroceryStorageState = {
@@ -369,7 +419,7 @@ function formatDate(date: string) {
 
 // Render the complete budget dashboard.
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'income'>('dashboard')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [fontSizeScale, setFontSizeScale] = useState(1)
   const [showIntro, setShowIntro] = useState(true)
@@ -377,7 +427,9 @@ function App() {
   const [familyItems, setFamilyItems] = useState<BudgetListItem[]>([])
   const [allowanceItems, setAllowanceItems] = useState<BudgetListItem[]>([])
   const [seldomItems, setSeldomItems] = useState<BudgetListItem[]>([])
-  function changeTab(tab: 'dashboard' | 'budgets') {
+  const [quarterlyExpenses, setQuarterlyExpenses] = useState<BudgetListItem[]>([])
+  const [semiMonthlySalary, setSemiMonthlySalary] = useState<BudgetListItem[]>([])
+  function changeTab(tab: 'dashboard' | 'budgets' | 'income') {
     setActiveTab(tab)
     if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0, behavior: 'auto' })
   }
@@ -473,6 +525,8 @@ function App() {
       familyItems,
       allowanceItems,
       seldomItems,
+      quarterlyExpenses,
+      semiMonthlySalary,
     }
   }
 
@@ -490,6 +544,8 @@ function App() {
     setFamilyItems(data.familyItems)
     setAllowanceItems(data.allowanceItems)
     setSeldomItems(data.seldomItems)
+    setQuarterlyExpenses(data.quarterlyExpenses)
+    setSemiMonthlySalary(data.semiMonthlySalary)
   }
 
   // Apply the selected theme to the page for the current session.
@@ -510,7 +566,7 @@ function App() {
       .catch((error: unknown) => {
         setDatabaseMessage(error instanceof Error ? error.message : 'Unable to save budget lists to the Excel workbook.')
       })
-  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems])
+  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems, quarterlyExpenses, semiMonthlySalary])
 
   function saveTodoItems(items: TodoItem[]) {
     try {
@@ -653,6 +709,10 @@ function App() {
     }, {}), [transactions, activityDate])
   const activityDates = useMemo(() => [...new Set(transactions.map((transaction) => transaction.date))]
     .sort((first, second) => second.localeCompare(first)), [transactions])
+  const incomeTransactions = useMemo(
+    () => transactions.filter((transaction) => transaction.type === 'income'),
+    [transactions],
+  )
 
   // Compute summaryCards to hold a value used by the surrounding dashboard logic.
   const summaryCards = useMemo(() => {
@@ -962,12 +1022,13 @@ function App() {
   const budgetOverallTotal = groceryProducts.reduce(
     (sum, product) => sum + (product.toBuy && !product.bought ? product.stock * product.price : 0),
     0,
-  ) + nonGroceryProducts.reduce((sum, product) => sum + product.stock * product.price, 0)
+  ) * 2 + nonGroceryProducts.reduce((sum, product) => sum + product.stock * product.price, 0) * 2
     + firstBills.reduce((sum, bill) => sum + bill.amount, 0)
     + secondBills.reduce((sum, bill) => sum + bill.amount, 0)
     + familyItems.reduce((sum, item) => sum + item.amount, 0)
     + allowanceItems.reduce((sum, item) => sum + item.amount, 0)
     + seldomItems.reduce((sum, item) => sum + item.amount, 0)
+    + quarterlyExpenses.reduce((sum, item) => sum + item.amount, 0)
 
   // Return the dashboard layout and its interactive controls.
   return (
@@ -999,6 +1060,7 @@ function App() {
       <nav className="main-tabs" role="tablist" aria-label="Main sections">
         <button id="dashboard-tab" className={activeTab === 'dashboard' ? 'main-tab active' : 'main-tab'} type="button" role="tab" aria-selected={activeTab === 'dashboard'} aria-controls="dashboard-content" onClick={() => changeTab('dashboard')}>Dashboard</button>
         <button id="budgets-tab" className={activeTab === 'budgets' ? 'main-tab active' : 'main-tab'} type="button" role="tab" aria-selected={activeTab === 'budgets'} aria-controls="budgets-content" onClick={() => changeTab('budgets')}>Budgets</button>
+        <button id="income-tab" className={activeTab === 'income' ? 'main-tab active' : 'main-tab'} type="button" role="tab" aria-selected={activeTab === 'income'} aria-controls="income-content" onClick={() => changeTab('income')}>Income</button>
       </nav>
       {activeTab === 'dashboard' ? <div id="dashboard-content" role="tabpanel" aria-labelledby="dashboard-tab">
       {/* Show the current day and selected reporting month. */}
@@ -1085,7 +1147,7 @@ function App() {
         </div></div>
       {/* Show each archived group, its saved totals, and its expandable transaction list. */}
       <section className="history-panel"><div className="section-heading"><div><h2>Expense history</h2><p className="muted">Transactions saved from recent activity</p></div><span className="history-count">{history.filter((transaction) => transaction.category !== 'Summary').length}</span></div>{summaryCards.length ? summaryCards.map((summary) => { const isCollapsed = collapsedGroups[summary.title] ?? true; return <div className="weekly-panel" key={summary.title}><div className="section-heading collapsible-header"><div><h2>{summary.title}</h2><p className="muted">Saved totals for this archive</p></div><button className="collapse-toggle" type="button" onClick={() => setCollapsedGroups((current) => ({ ...current, [summary.title]: !isCollapsed }))}>{isCollapsed ? 'Expand' : 'Collapse'}</button></div><div className="stats-grid"><article className="stat-card"><div className="stat-label"><span className="dot income-dot" />Total income</div><strong>{currency.format(summary.income)}</strong></article><article className="stat-card"><div className="stat-label"><span className="dot expense-dot" />Total expenses</div><strong>{currency.format(summary.expense)}</strong></article><article className="stat-card balance"><div className="stat-label">Available balance <span className="info">i</span></div><strong>{currency.format(summary.balance)}</strong></article></div>{!isCollapsed && summary.entries?.length ? <div className="history-list"><div className="history-group"><h3>Saved transactions</h3>{summary.entries.map((transaction) => <div className="transaction" key={`${transaction.id}-${transaction.date}-${transaction.historyTitle}`}><div className={`transaction-icon ${transaction.type}`}>{transaction.type === 'income' ? '↙' : '↗'}</div><div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div><div className={transaction.type === 'income' ? 'amount income-amount' : 'amount'}>{transaction.type === 'income' ? '+' : '-'}{currency.format(transaction.amount)}</div></div>)}</div></div> : null}</div> }) : <p className="muted">No saved transactions yet.</p>}</section>
-      </div> : <section id="budgets-content" className="budgets-page" role="tabpanel" aria-labelledby="budgets-tab">
+      </div> : activeTab === 'budgets' ? <section id="budgets-content" className="budgets-page" role="tabpanel" aria-labelledby="budgets-tab">
         <div className="budgets-heading" data-scroll-reveal>
           <div>
             <p className="eyebrow">Plan your spending</p>
@@ -1123,7 +1185,32 @@ function App() {
           <BudgetItemsCard id="family" title="Family bonding/Events" description="Make room for memories" icon="💛" items={familyItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setFamilyItems} />
           <BudgetItemsCard id="allowance" title="15days allowance" description="Payday planning" icon="💵" items={allowanceItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setAllowanceItems} />
           <BudgetItemsCard id="seldom" title="Seldom buys" description="Occasional purchases" icon="✨" items={seldomItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setSeldomItems} />
+          <BudgetItemsCard id="quarterly" title="Quarterly Expenses" description="Plan ahead each quarter" icon="🗓️" items={quarterlyExpenses} writable={Boolean(directoryHandle) && workbookReady} onChange={setQuarterlyExpenses} />
         </div>
+      </section> : <section id="income-content" className="budgets-page" role="tabpanel" aria-labelledby="income-tab">
+        <div className="budgets-heading" data-scroll-reveal>
+          <div>
+            <p className="eyebrow">Track what you earn</p>
+            <div className="budgets-title-row"><h1>Income</h1><span className="budgets-total-label"><span>Total income</span><strong>{currency.format(totals.income)}</strong></span></div>
+            <p className="muted">Review income transactions saved in your ledger.</p>
+          </div>
+        </div>
+        {!directoryHandle && <p className="database-error" role="alert">Choose an Excel database folder from the Dashboard to save and edit salary entries.</p>}
+        {databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}
+        <SemiMonthlySalaryCard items={semiMonthlySalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiMonthlySalary} />
+        <section className="history-panel" aria-label="Income transactions">
+          <div className="section-heading">
+            <div><h2>Income transactions</h2><p className="muted">{incomeTransactions.length} entries</p></div>
+          </div>
+          {incomeTransactions.length ? <div className="history-list">{incomeTransactions.map((transaction) => (
+            <div className="transaction" key={transaction.id}>
+              <div className="transaction-icon income" aria-hidden="true">↙</div>
+              <div className="transaction-info"><strong>{transaction.title}</strong><span>{formatDate(transaction.date)} · {transaction.category}</span></div>
+              <div className="amount income-amount">+{currency.format(transaction.amount)}</div>
+              <button className="delete-button" type="button" aria-label={`Delete ${transaction.title}`} onClick={() => save(transactions.filter((item) => item.id !== transaction.id))}>×</button>
+            </div>
+          ))}</div> : <p className="muted">No income transactions yet. Add income from the Dashboard.</p>}
+        </section>
       </section>}
     </main>
   )

@@ -75,6 +75,8 @@ export type WorkbookData = {
   familyItems: BudgetListItem[]
   allowanceItems: BudgetListItem[]
   seldomItems: BudgetListItem[]
+  quarterlyExpenses: BudgetListItem[]
+  semiMonthlySalary: BudgetListItem[]
 // Close the current object, callback, or expression.
 }
 
@@ -330,6 +332,8 @@ async function createWorkbook(data: WorkbookData) {
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.familyItems)), 'Family Bonding')
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.allowanceItems)), 'Cut-off Allowance')
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.seldomItems)), 'Seldom Buys')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.quarterlyExpenses)), 'Quarterly Expenses')
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(budgetItemRows(data.semiMonthlySalary)), 'Semi-monthly Salary')
   // Serialize the workbook as bytes that the browser file API can write.
   return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
 // Close the current object, callback, or expression.
@@ -376,6 +380,8 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
       familyItems: [],
       allowanceItems: [],
       seldomItems: [],
+      quarterlyExpenses: [],
+      semiMonthlySalary: [],
     }
     // Wait for this asynchronous operation to complete before continuing.
     await writeWorkbook(handle, initialData)
@@ -424,6 +430,8 @@ export async function loadWorkbook(handle: BrowserDirectoryHandle): Promise<Work
     familyItems: readBudgetItems('Family Bonding'),
     allowanceItems: readBudgetItems('Cut-off Allowance'),
     seldomItems: readBudgetItems('Seldom Buys'),
+    quarterlyExpenses: readBudgetItems('Quarterly Expenses'),
+    semiMonthlySalary: readBudgetItems('Semi-monthly Salary'),
   // Close the current object, callback, or expression.
   }
 // Close the current object, callback, or expression.

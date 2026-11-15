@@ -35,6 +35,8 @@
 .budget-item-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 16px; }
 .budget-item-form input { min-width: 0; margin: 0; }
 .budget-item-form .add-button { width: auto; margin: 0; padding: 9px 13px; }
+.salary-item-form { grid-template-columns: minmax(0, 1fr) minmax(140px, .55fr) auto; align-items: end; }
+.salary-item-form .salary-amount-field { min-width: 0; margin: 0; }
 .budget-items-empty { margin: 12px 0 0; color: #78867c; font-size: 13px; }
 .budget-items-list { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
 .budget-items-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #e8ede7; border-radius: 8px; background: #fbfcfa; color: #344139; font-size: 14px; }
@@ -967,7 +969,7 @@ body { background: var(--calm-bg); color: var(--calm-text); }
 	background: url('/nature-background.png') center / cover no-repeat;
 	content: '';
 	opacity: .9;
-	filter: blur(5px) saturate(1);
+	filter: blur(3px) saturate(1);
 	transform: scale(1.02);
 	pointer-events: none;
 }
