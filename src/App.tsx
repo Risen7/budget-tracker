@@ -78,12 +78,13 @@ type BudgetItemsCardProps = {
   items: BudgetListItem[]
   writable: boolean
   onChange: (items: BudgetListItem[]) => void
+  totalDivisor?: number
 }
 
-function BudgetItemsCard({ id, title, description, icon, items, writable, onChange }: BudgetItemsCardProps) {
+function BudgetItemsCard({ id, title, description, icon, items, writable, onChange, totalDivisor = 1 }: BudgetItemsCardProps) {
   const [draft, setDraft] = useState('')
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({})
-  const total = items.reduce((sum, item) => sum + item.amount, 0)
+  const total = items.reduce((sum, item) => sum + item.amount, 0) / totalDivisor
 
   function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1025,10 +1026,10 @@ function App() {
   ) * 2 + nonGroceryProducts.reduce((sum, product) => sum + product.stock * product.price, 0) * 2
     + firstBills.reduce((sum, bill) => sum + bill.amount, 0)
     + secondBills.reduce((sum, bill) => sum + bill.amount, 0)
-    + familyItems.reduce((sum, item) => sum + item.amount, 0)
-    + allowanceItems.reduce((sum, item) => sum + item.amount, 0)
-    + seldomItems.reduce((sum, item) => sum + item.amount, 0)
-    + quarterlyExpenses.reduce((sum, item) => sum + item.amount, 0)
+    + familyItems.reduce((sum, item) => sum + item.amount, 0) * 2
+    + allowanceItems.reduce((sum, item) => sum + item.amount, 0) * 2
+    + seldomItems.reduce((sum, item) => sum + item.amount, 0) / 12
+    + quarterlyExpenses.reduce((sum, item) => sum + item.amount, 0) / 3
 
   // Return the dashboard layout and its interactive controls.
   return (
@@ -1185,7 +1186,7 @@ function App() {
           <BudgetItemsCard id="family" title="Family bonding/Events" description="Make room for memories" icon="💛" items={familyItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setFamilyItems} />
           <BudgetItemsCard id="allowance" title="15days allowance" description="Payday planning" icon="💵" items={allowanceItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setAllowanceItems} />
           <BudgetItemsCard id="seldom" title="Seldom buys" description="Occasional purchases" icon="✨" items={seldomItems} writable={Boolean(directoryHandle) && workbookReady} onChange={setSeldomItems} />
-          <BudgetItemsCard id="quarterly" title="Quarterly Expenses" description="Plan ahead each quarter" icon="🗓️" items={quarterlyExpenses} writable={Boolean(directoryHandle) && workbookReady} onChange={setQuarterlyExpenses} />
+          <BudgetItemsCard id="quarterly" title="Quarterly Expenses" description="Plan ahead each quarter" icon="🗓️" items={quarterlyExpenses} writable={Boolean(directoryHandle) && workbookReady} onChange={setQuarterlyExpenses} totalDivisor={3} />
         </div>
       </section> : <section id="income-content" className="budgets-page" role="tabpanel" aria-labelledby="income-tab">
         <div className="budgets-heading" data-scroll-reveal>
