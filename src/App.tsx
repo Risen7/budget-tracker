@@ -435,6 +435,7 @@ function App() {
   const [semiMonthlySalary, setSemiMonthlySalary] = useState<BudgetListItem[]>([])
   const [secondHalfSalary, setSecondHalfSalary] = useState<BudgetListItem[]>([])
   const [semiAnnualFundsProfit, setSemiAnnualFundsProfit] = useState<BudgetListItem[]>([])
+  const [secondHalfYearProfit, setSecondHalfYearProfit] = useState<BudgetListItem[]>([])
   function changeTab(tab: 'dashboard' | 'budgets' | 'income') {
     setActiveTab(tab)
     if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0, behavior: 'auto' })
@@ -535,6 +536,7 @@ function App() {
       semiMonthlySalary,
       secondHalfSalary,
       semiAnnualFundsProfit,
+      secondHalfYearProfit,
     }
   }
 
@@ -556,6 +558,7 @@ function App() {
     setSemiMonthlySalary(data.semiMonthlySalary)
     setSecondHalfSalary(data.secondHalfSalary)
     setSemiAnnualFundsProfit(data.semiAnnualFundsProfit)
+    setSecondHalfYearProfit(data.secondHalfYearProfit)
   }
 
   // Apply the selected theme to the page for the current session.
@@ -576,7 +579,7 @@ function App() {
       .catch((error: unknown) => {
         setDatabaseMessage(error instanceof Error ? error.message : 'Unable to save budget lists to the Excel workbook.')
       })
-  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems, quarterlyExpenses, semiMonthlySalary, secondHalfSalary, semiAnnualFundsProfit])
+  }, [directoryHandle, workbookReady, groceryState.products, nonGroceryState.products, firstBillState.bills, secondBillState.bills, familyItems, allowanceItems, seldomItems, quarterlyExpenses, semiMonthlySalary, secondHalfSalary, semiAnnualFundsProfit, secondHalfYearProfit])
 
   function saveTodoItems(items: TodoItem[]) {
     try {
@@ -639,6 +642,21 @@ function App() {
     return summary
   // Perform this step in the dashboard calculation or state update.
   }, { income: 0, expense: 0 }), [transactions])
+
+  // Sum the totals from each income card on the Income tab to reflect the overall
+  // income captured in the workbook’s dedicated income planning sections.
+  const incomeCardTotal = useMemo(() => {
+    const salaryAndOtherIncome = [semiMonthlySalary, secondHalfSalary].reduce(
+      (sum, items) => sum + items.reduce((cardTotal, item) => cardTotal + item.amount, 0),
+      0,
+    )
+    const halfYearProfitTotal = [semiAnnualFundsProfit, secondHalfYearProfit].reduce(
+      (sum, items) => sum + items.reduce((cardTotal, item) => cardTotal + item.amount, 0),
+      0,
+    )
+
+    return salaryAndOtherIncome + (halfYearProfitTotal / 12)
+  }, [semiMonthlySalary, secondHalfSalary, semiAnnualFundsProfit, secondHalfYearProfit])
 
   // Summarize the last 15 days so the dashboard can chart recent spending.
   const weeklyExpenditure = useMemo(() => {
@@ -1201,7 +1219,7 @@ function App() {
         <div className="budgets-heading" data-scroll-reveal>
           <div>
             <p className="eyebrow">Track what you earn</p>
-            <div className="budgets-title-row"><h1>Income</h1><span className="budgets-total-label"><span>Total income</span><strong>{currency.format(totals.income)}</strong></span></div>
+            <div className="budgets-title-row"><h1>Income</h1><span className="budgets-total-label"><span>Total income</span><strong>{currency.format(incomeCardTotal)}</strong></span></div>
             <p className="muted">Review income transactions saved in your ledger.</p>
           </div>
         </div>
@@ -1209,7 +1227,8 @@ function App() {
         {databaseMessage && <p className="database-error" role="alert">{databaseMessage}</p>}
         <IncomeEntryCard id="first-half-salary" title="1st-15th Days Salary" entryPlaceholder="e.g. First payday" items={semiMonthlySalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiMonthlySalary} />
         <IncomeEntryCard id="second-half-salary" title="16th-30th Days Salary" entryPlaceholder="e.g. Second payday" items={secondHalfSalary} writable={Boolean(directoryHandle) && workbookReady} onChange={setSecondHalfSalary} />
-        <IncomeEntryCard id="semi-annual-funds-profit" title="Semi-annual Funds Profit" entryPlaceholder="e.g. Mid-year profit" items={semiAnnualFundsProfit} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiAnnualFundsProfit} />
+        <IncomeEntryCard id="semi-annual-funds-profit" title="1st half year profit" entryPlaceholder="e.g. Mid-year profit" items={semiAnnualFundsProfit} writable={Boolean(directoryHandle) && workbookReady} onChange={setSemiAnnualFundsProfit} />
+        <IncomeEntryCard id="second-half-year-profit" title="2nd half year profit" entryPlaceholder="e.g. Year-end profit" items={secondHalfYearProfit} writable={Boolean(directoryHandle) && workbookReady} onChange={setSecondHalfYearProfit} />
         <section className="history-panel" aria-label="Income transactions">
           <div className="section-heading">
             <div><h2>Income transactions</h2><p className="muted">{incomeTransactions.length} entries</p></div>
